@@ -11,10 +11,16 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleUserClick = (user: User) => {
-    setSelectedUser(user);
-    setPassword('');
-    setError('');
+  const handleUserSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const userId = e.target.value;
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      setSelectedUser(user);
+      setPassword('');
+      setError('');
+    } else {
+      setSelectedUser(null);
+    }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -40,26 +46,39 @@ export default function Login() {
           <p>Select a user to continue</p>
         </div>
 
-        <div className="user-list">
-          {users.map((user) => (
-            <button
-              key={user.id}
-              className={`user-card ${selectedUser?.id === user.id ? 'active' : ''}`}
-              onClick={() => handleUserClick(user)}
+        {!selectedUser ? (
+          <div className="user-select-container" style={{ textAlign: 'left', marginTop: '1.5rem' }}>
+            <label htmlFor="userSelect" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
+              Choose your account
+            </label>
+            <select 
+              id="userSelect"
+              onChange={handleUserSelect}
+              defaultValue=""
+              style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(0,0,0,0.1)', background: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '1rem', cursor: 'pointer' }}
             >
-              <img src={user.avatar} alt={user.name} className="avatar" />
-              <div className="user-info">
-                <h3>{user.name}</h3>
-                <p>{user.role}</p>
-              </div>
-            </button>
-          ))}
-        </div>
+              <option value="" disabled>Select a user...</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.role})
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         {selectedUser && (
-          <form onSubmit={handleLogin} className="password-form animate-fade-in" style={{ marginTop: '2rem', width: '100%' }}>
+          <form onSubmit={handleLogin} className="password-form animate-fade-in" style={{ marginTop: '1.5rem', width: '100%', textAlign: 'left' }}>
+            <div className="selected-user-preview" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--bg-body)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', border: '1px solid rgba(0,0,0,0.05)' }}>
+              <img src={selectedUser.avatar} alt={selectedUser.name} className="avatar" style={{ width: '40px', height: '40px' }} />
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1rem' }}>{selectedUser.name}</h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{selectedUser.role}</span>
+              </div>
+            </div>
+
             <div className="form-group">
-              <label htmlFor="password">Enter password for {selectedUser.name}</label>
+              <label htmlFor="password" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-secondary)' }}>Enter password</label>
               <input 
                 id="password"
                 type="password" 
