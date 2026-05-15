@@ -104,7 +104,7 @@
 
 .list-header {
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1.5fr 1fr 0.5fr;
+  grid-template-columns: 2fr 0.9fr 1.3fr 0.9fr 1.5fr;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid rgba(0,0,0,0.05);
   font-size: 0.75rem;
@@ -116,7 +116,7 @@
 
 .list-row {
   display: grid;
-  grid-template-columns: 2.5fr 1fr 1.5fr 1fr 0.5fr;
+  grid-template-columns: 2fr 0.9fr 1.3fr 0.9fr 1.5fr;
   padding: 1rem 1.5rem;
   align-items: center;
   border-radius: var(--radius-lg);
@@ -346,4 +346,41 @@
   padding: 0.125rem 0.5rem;
   border-radius: var(--radius-sm);
   font-weight: 700;
+}
+
+/* ── Role Toggle ──────────────────────────────── */
+.row-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.btn-role-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-role-toggle:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.team-card-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }

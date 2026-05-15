@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { UserPlus, Shield, User, Trash2, Search, Users, ShieldCheck, CheckCircle } from 'lucide-react';
+import { UserPlus, Shield, User, Trash2, Search, Users, ShieldCheck, CheckCircle, RefreshCw } from 'lucide-react';
 import UserModal from '../components/modals/UserModal';
 import './Dashboard.css'; 
 import './Team.css';
 
 export default function Team() {
-  const { users, currentUser, removeUser } = useAuth();
+  const { users, currentUser, removeUser, changeUserRole } = useAuth();
   const { tasks, unassignTasksForUser } = useData();
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,13 +151,23 @@ export default function Team() {
                   </div>
                   <div className="col-actions">
                     {isAdmin && user.id !== currentUser?.id && (
-                      <button 
-                        className="btn-icon btn-sm text-danger"
-                        onClick={() => handleRemoveUser(user.id)}
-                        title="Remove Member"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="row-actions-group">
+                        <button
+                          className="btn-role-toggle"
+                          onClick={() => changeUserRole(user.id, user.role === 'Admin' ? 'Employee' : 'Admin')}
+                          title={user.role === 'Admin' ? 'Demote to Employee' : 'Promote to Admin'}
+                        >
+                          <RefreshCw size={12} />
+                          {user.role === 'Admin' ? 'Make Employee' : 'Make Admin'}
+                        </button>
+                        <button 
+                          className="btn-icon btn-sm text-danger"
+                          onClick={() => handleRemoveUser(user.id)}
+                          title="Remove Member"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -204,11 +214,18 @@ export default function Team() {
                 
                 {isAdmin && user.id !== currentUser?.id && (
                   <div className="team-card-actions">
+                    <button
+                      className="btn-role-toggle"
+                      onClick={() => changeUserRole(user.id, user.role === 'Admin' ? 'Employee' : 'Admin')}
+                    >
+                      <RefreshCw size={13} />
+                      {user.role === 'Admin' ? 'Make Employee' : 'Make Admin'}
+                    </button>
                     <button 
                       className="btn-text text-danger" 
                       onClick={() => handleRemoveUser(user.id)}
                     >
-                      <Trash2 size={14} /> Remove Member
+                      <Trash2 size={14} /> Remove
                     </button>
                   </div>
                 )}

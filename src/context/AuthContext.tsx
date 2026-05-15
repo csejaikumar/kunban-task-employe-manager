@@ -13,6 +13,7 @@ interface AuthContextType {
   addUser: (name: string, role: 'Admin' | 'Employee', password?: string) => void;
   removeUser: (id: string) => void;
   updatePassword: (userId: string, newPassword: string) => Promise<boolean>;
+  changeUserRole: (userId: string, newRole: 'Admin' | 'Employee') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -137,8 +138,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const changeUserRole = async (userId: string, newRole: 'Admin' | 'Employee') => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    const promise = fetch(`${API_URL}/api/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...user, role: newRole }),
+    }).then(async res => {
+      if (!res.ok) throw new Error('Role update failed');
+      const updated = await res.json();
+      setUsers(prev => prev.map(u => u.id === userId ? updated : u));
+      if (currentUser?.id === userId) {
+        setCurrentUser(updated);
+        localStorage.setItem('currentUser', JSON.stringify(updated));
+      }
+    });
+
+    return goeyToast.promise(promise, {
+      loading: 'Changing role...',
+      success: `Role changed to ${newRole}`,
+      error: 'Failed to change role',
+      description: {
+        success: `User is now ${newRole === 'Admin' ? 'an Admin' : 'an Employee'}.`,
+        error: 'Could not update the role. Please try again.',
+      },
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, users, addUser, removeUser, updatePassword }}>
+    <AuthContext.Provider value={{ currentUser, login, logout, users, addUser, removeUser, updatePassword, changeUserRole }}>
       {children}
     </AuthContext.Provider>
   );
