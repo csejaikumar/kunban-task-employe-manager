@@ -30,6 +30,15 @@ export default function ProjectBoard() {
 
   let projectTasks = tasks.filter(t => t.projectId === id);
 
+  const isAdmin = currentUser?.role === 'Admin';
+
+  // Apply Role-Based Visibility Filter
+  if (!isAdmin) {
+    projectTasks = projectTasks.filter(t => 
+      !t.assigneeId || t.assigneeId === currentUser?.id
+    );
+  }
+
   // Apply filters
   if (searchTerm) {
     projectTasks = projectTasks.filter(t => t.title.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -39,12 +48,9 @@ export default function ProjectBoard() {
   }
   if (filterAssignee !== 'All') {
     projectTasks = projectTasks.filter(t => 
-      filterAssignee === 'Unassigned' ? t.assigneeId === null : t.assigneeId === filterAssignee
+      filterAssignee === 'Unassigned' ? !t.assigneeId : t.assigneeId === filterAssignee
     );
   }
-
-  const isAdmin = currentUser?.role === 'Admin';
-  // If not admin and not assigned to project, might want to restrict view, but requirement says Employees can view but only manage their tasks.
   
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
