@@ -13,7 +13,7 @@ interface AuthContextType {
   addUser: (name: string, role: 'Admin' | 'Employee', password?: string) => void;
   removeUser: (id: string) => void;
   updatePassword: (userId: string, newPassword: string) => Promise<boolean>;
-  changeUserRole: (userId: string, newRole: 'Admin' | 'Employee') => Promise<void>;
+  changeUserRole: (userId: string, newRole: 'Admin' | 'Employee') => Promise<unknown>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
