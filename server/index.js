@@ -107,6 +107,19 @@ app.post('/api/projects', async (req, res) => {
   }
 });
 
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    // Delete all tasks belonging to this project first
+    await Task.deleteMany({ projectId: projectId });
+    // Then delete the project itself
+    await Project.findByIdAndDelete(projectId);
+    res.json({ message: 'Project and all related tasks deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Routes - Tasks
 app.get('/api/tasks', async (req, res) => {
   try {

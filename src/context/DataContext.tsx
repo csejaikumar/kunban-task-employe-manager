@@ -10,6 +10,7 @@ interface DataContextType {
   tasks: Task[];
   addProject: (project: Omit<Project, 'id'>) => void;
   updateProject: (project: Project) => void;
+  deleteProject: (id: string) => void;
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (task: Task) => void;
   deleteTask: (id: string) => void;
@@ -93,6 +94,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
       description: {
         success: 'Changes saved successfully.',
         error: 'Could not save project changes.',
+      },
+    });
+  };
+
+  const deleteProject = async (id: string) => {
+    const promise = fetch(`${API_URL}/api/projects/${id}`, { method: 'DELETE' })
+      .then(() => {
+        setProjects(prev => prev.filter(p => p.id !== id));
+        setTasks(prev => prev.filter(t => t.projectId !== id));
+      });
+
+    return goeyToast.promise(promise, {
+      loading: 'Deleting project...',
+      success: 'Project deleted',
+      error: 'Delete failed',
+      description: {
+        success: 'Project and all its tasks have been removed.',
+        error: 'The project could not be removed.',
       },
     });
   };
@@ -194,7 +213,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <DataContext.Provider value={{ projects, tasks, addProject, updateProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser }}>
+    <DataContext.Provider value={{ projects, tasks, addProject, updateProject, deleteProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser }}>
       {children}
     </DataContext.Provider>
   );

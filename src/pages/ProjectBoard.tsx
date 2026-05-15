@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import type { TaskStatus } from '../types';
@@ -14,7 +14,8 @@ const COLUMNS: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 
 export default function ProjectBoard() {
   const { id } = useParams<{ id: string }>();
-  const { projects, tasks, moveTask, toggleSubtask, deleteTask, updateTask } = useData();
+  const navigate = useNavigate();
+  const { projects, tasks, moveTask, toggleSubtask, deleteTask, updateTask, deleteProject } = useData();
   const { currentUser, users } = useAuth();
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -22,6 +23,7 @@ export default function ProjectBoard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('All');
   const [filterAssignee, setFilterAssignee] = useState<string>('All');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const project = projects.find(p => p.id === id);
   if (!project) return <Navigate to="/" replace />;
@@ -75,6 +77,19 @@ export default function ProjectBoard() {
     setActiveDropdownMenu(null);
   };
 
+  const handleDeleteProject = async () => {
+    if (!isAdmin) {
+      goeyToast.error('Permission denied', {
+        description: 'Only Admins can delete projects.',
+      });
+      return;
+    }
+    if (id) {
+      await deleteProject(id);
+      navigate('/');
+    }
+  };
+
   const handleAssignToMe = (taskId: string) => {
     const task = projectTasks.find(t => t.id === taskId);
     if (task && currentUser) {
@@ -100,9 +115,38 @@ export default function ProjectBoard() {
         </div>
         <div className="board-actions">
           {isAdmin && (
-            <button className="btn btn-primary" onClick={() => setIsTaskModalOpen(true)}>
-              <Plus size={18} /> New Task
-            </button>
+            <>
+              <button className="btn btn-primary" onClick={() => setIsTaskModalOpen(true)}>
+                <Plus size={18} /> New Task
+              </button>
+              {!showDeleteConfirm ? (
+                <button
+                  id="delete-project-btn"
+                  className="btn btn-danger"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  title="Delete this project and all its tasks"
+                >
+                  <Trash2 size={18} /> Delete Project
+                </button>
+              ) : (
+                <div className="delete-confirm-inline" onClick={(e) => e.stopPropagation()}>
+                  <span>Delete project &amp; all tasks?</span>
+                  <button
+                    id="confirm-delete-project-btn"
+                    className="btn btn-danger btn-sm"
+                    onClick={handleDeleteProject}
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </header>
