@@ -41,6 +41,13 @@ app.get('/', (req, res) => {
   res.json({ message: 'Kanban API is running ✅', status: 'ok' });
 });
 
+// DB health check
+app.get('/api/health', (req, res) => {
+  const state = mongoose.connection.readyState;
+  const states = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+  res.json({ db: states[state] || 'unknown', state });
+});
+
 
 // Routes - Users
 app.get('/api/users', async (req, res) => {
