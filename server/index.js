@@ -23,6 +23,11 @@ const User = require('./models/User');
 const Project = require('./models/Project');
 const Task = require('./models/Task');
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Kanban API is running ✅', status: 'ok' });
+});
+
 // Routes - Users
 app.get('/api/users', async (req, res) => {
   try {
