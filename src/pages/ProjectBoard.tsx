@@ -256,7 +256,7 @@ export default function ProjectBoard() {
                                             defaultValue=""
                                           >
                                             <option value="" disabled>Select user...</option>
-                                            {users.filter(u => project?.members.includes(u.id) || u.role === 'Admin').map(u => (
+                                            {users.map(u => (
                                               <option key={u.id} value={u.id}>{u.name}</option>
                                             ))}
                                           </select>
