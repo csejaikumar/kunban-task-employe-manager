@@ -78,12 +78,12 @@
 .board-columns {
   display: flex;
   gap: 1.5rem;
-  flex: 1;
+  flex: 1 1 0%;
   overflow-x: auto;
-  overflow-y: hidden; /* Prevent vertical overflow of the columns container */
+  overflow-y: hidden;
   padding-bottom: 1rem;
-  align-items: stretch; /* Ensure columns stretch to full height */
-  min-height: 0; /* Critical for flex scrolling */
+  align-items: stretch;
+  min-height: 0;
 }
 
 .board-column {
@@ -94,7 +94,9 @@
   border-radius: var(--radius-xl);
   background-color: var(--bg-board);
   border: 1px solid rgba(0,0,0,0.03);
-  max-height: 100%; /* Constrain height to parent to enable internal scroll */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .column-header-left {
@@ -131,16 +133,13 @@
 
 .column-task-list {
   padding: 0.75rem;
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 0%;
+  overflow-y: auto !important;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   transition: background-color var(--transition-fast);
-  
-  /* Custom Scrollbar for better UI */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,0.1) transparent;
+  min-height: 0;
 }
 
 .column-task-list::-webkit-scrollbar {
