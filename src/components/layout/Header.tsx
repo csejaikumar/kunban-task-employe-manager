@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { LogOut, Bell, Sun, Moon, Key } from 'lucide-react';
+import { LogOut, Sun, Moon, Key } from 'lucide-react';
 import PasswordModal from '../modals/PasswordModal';
 
 export default function Header() {
@@ -18,10 +18,6 @@ export default function Header() {
       <div className="header-right">
         <button className="btn-icon" onClick={toggleTheme} title="Toggle Theme">
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
-        
-        <button className="btn-icon" title="Notifications">
-          <Bell size={20} />
         </button>
         
         <div className="user-profile">
