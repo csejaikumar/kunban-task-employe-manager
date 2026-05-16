@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -121,6 +122,39 @@ app.put('/api/projects/:id', async (req, res) => {
   } catch (err) {
     console.error('Error updating project:', err.message);
     res.status(400).json({ message: err.message });
+  }
+});
+
+// Share routes
+app.post('/api/projects/:id/share', async (req, res) => {
+  try {
+    const token = crypto.randomBytes(16).toString('hex');
+    const project = await Project.findByIdAndUpdate(req.params.id, { shareToken: token }, { new: true });
+    res.json(project);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.delete('/api/projects/:id/share', async (req, res) => {
+  try {
+    const project = await Project.findByIdAndUpdate(req.params.id, { shareToken: null }, { new: true });
+    res.json(project);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Public access route
+app.get('/api/public/projects/:token', async (req, res) => {
+  try {
+    const project = await Project.findOne({ shareToken: req.params.token });
+    if (!project) return res.status(404).json({ message: 'Project not found or link expired' });
+    
+    const tasks = await Task.find({ projectId: project._id });
+    res.json({ project, tasks });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

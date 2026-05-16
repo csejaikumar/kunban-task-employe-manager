@@ -9,6 +9,7 @@ import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ProjectBoard from './pages/ProjectBoard';
+import PublicProjectBoard from './pages/PublicProjectBoard';
 import Team from './pages/Team';
 
 function App() {
@@ -19,6 +20,8 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
+
+              <Route path="/shared/:token" element={<PublicProjectBoard />} />
 
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />

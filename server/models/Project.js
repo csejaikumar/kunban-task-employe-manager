@@ -4,7 +4,8 @@ const projectSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String },
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+  members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  shareToken: { type: String, unique: true, sparse: true }
 }, { timestamps: true });
 
 projectSchema.set('toJSON', {

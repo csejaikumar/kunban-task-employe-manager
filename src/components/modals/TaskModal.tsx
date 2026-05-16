@@ -3,18 +3,18 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { X, Plus, Trash2 } from 'lucide-react';
 
-export default function TaskModal({ projectId, onClose }: { projectId: string, onClose: () => void }) {
-  const { addTask, projects } = useData();
+export default function TaskModal({ projectId, onClose, task }: { projectId: string, onClose: () => void, task?: Task }) {
+  const { addTask, updateTask, projects } = useData();
   const { users } = useAuth();
   
   const project = projects.find(p => String(p.id) === String(projectId) || String((p as any)._id) === String(projectId));
   const projectMembers = Array.isArray(project?.members) ? project.members : [];
   
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
-  const [assigneeId, setAssigneeId] = useState<string>('');
-  const [subtasks, setSubtasks] = useState<{ id: string, title: string, isCompleted: boolean }[]>([]);
+  const [title, setTitle] = useState(task?.title || '');
+  const [description, setDescription] = useState(task?.description || '');
+  const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>(task?.priority || 'Medium');
+  const [assigneeId, setAssigneeId] = useState<string>(task?.assigneeId || '');
+  const [subtasks, setSubtasks] = useState<{ id: string, title: string, isCompleted: boolean }[]>(task?.subtasks || []);
   const [newSubtask, setNewSubtask] = useState('');
 
   const handleAddSubtask = () => {
@@ -31,16 +31,27 @@ export default function TaskModal({ projectId, onClose }: { projectId: string, o
     e.preventDefault();
     if (!title.trim()) return;
 
-    addTask({
-      projectId,
-      title,
-      description,
-      priority,
-      assigneeId: assigneeId || null,
-      status: 'Todo',
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now
-      subtasks,
-    });
+    if (task) {
+      updateTask({
+        ...task,
+        title,
+        description,
+        priority,
+        assigneeId: assigneeId || null,
+        subtasks,
+      });
+    } else {
+      addTask({
+        projectId,
+        title,
+        description,
+        priority,
+        assigneeId: assigneeId || null,
+        status: 'Todo',
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week from now
+        subtasks,
+      });
+    }
     
     onClose();
   };
@@ -49,7 +60,7 @@ export default function TaskModal({ projectId, onClose }: { projectId: string, o
     <div className="modal-overlay">
       <div className="modal-content glass-panel animate-fade-in">
         <div className="modal-header">
-          <h2>New Task</h2>
+          <h2>{task ? 'Edit Task' : 'New Task'}</h2>
           <button className="btn-icon" onClick={onClose}><X size={20} /></button>
         </div>
         
@@ -131,7 +142,9 @@ export default function TaskModal({ projectId, onClose }: { projectId: string, o
           
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={!title.trim()}>Create Task</button>
+            <button type="submit" className="btn btn-primary" disabled={!title.trim()}>
+              {task ? 'Save Changes' : 'Create Task'}
+            </button>
           </div>
         </form>
       </div>

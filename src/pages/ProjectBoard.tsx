@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import type { TaskStatus } from '../types';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { Plus, MoreVertical, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus, Share2, Link as LinkIcon, Copy, X, Eye, Check, Edit2 } from 'lucide-react';
 import TaskModal from '../components/modals/TaskModal';
 import { goeyToast } from 'goey-toast';
 import './ProjectBoard.css';
@@ -15,7 +15,7 @@ const COLUMNS: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 export default function ProjectBoard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, tasks, moveTask, toggleSubtask, deleteTask, updateTask, deleteProject, isLoading, toggleProjectMember } = useData();
+  const { projects, tasks, moveTask, toggleSubtask, deleteTask, updateTask, deleteProject, isLoading, toggleProjectMember, generateShareLink, revokeShareLink } = useData();
   const { currentUser, users } = useAuth();
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -25,207 +25,162 @@ export default function ProjectBoard() {
   const [filterAssignee, setFilterAssignee] = useState<string>('All');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<any | null>(null);
 
   const project = projects.find(p => String(p.id) === String(id) || String((p as any)._id) === String(id));
 
-  // If projects are still loading, show a loading state
-  if (isLoading && id) {
-    return <div className="loading-container">Loading project...</div>;
-  }
-
-  if (!project) return <Navigate to="/" replace />;
+  if (isLoading) return <div className="loading-container">Loading project...</div>;
+  if (!project) return <Navigate to="/" />;
 
   const isAdmin = currentUser?.role === 'Admin';
+  const projectTasks = tasks.filter(t => t.projectId === (project.id || (project as any)._id));
   const projectMembers = Array.isArray(project.members) ? project.members : [];
-  const isMember = projectMembers.some(m => String(m) === String(currentUser?.id));
 
+  let filteredTasks = projectTasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPriority = filterPriority === 'All' || task.priority === filterPriority;
+    const matchesAssignee = filterAssignee === 'All' || task.assigneeId === filterAssignee;
+    return matchesSearch && matchesPriority && matchesAssignee;
+  });
 
-
-  if (!isAdmin && !isMember) {
-    return <Navigate to="/" replace />;
-  }
-
-  let projectTasks = tasks.filter(t => String(t.projectId) === String(id));
-
-  // Restore Role-Based Task Visibility Filter for Employees
-  if (!isAdmin) {
-    projectTasks = projectTasks.filter(t =>
-      !t.assigneeId || t.assigneeId === currentUser?.id
-    );
-  }
-
-  // Apply filters
-  if (searchTerm) {
-    projectTasks = projectTasks.filter(t => t.title.toLowerCase().includes(searchTerm.toLowerCase()));
-  }
-  if (filterPriority !== 'All') {
-    projectTasks = projectTasks.filter(t => t.priority === filterPriority);
-  }
-  if (filterAssignee !== 'All') {
-    projectTasks = projectTasks.filter(t =>
-      filterAssignee === 'Unassigned' ? !t.assigneeId : t.assigneeId === filterAssignee
-    );
-  }
+  const getAssigneeAvatar = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    return user?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=faces';
+  };
 
   const handleToggleMember = (userId: string) => {
     if (!id) return;
     toggleProjectMember(id, userId);
   };
 
+  const handleGenerateShare = async () => {
+    if (!id) return;
+    try {
+      await generateShareLink(id);
+      goeyToast.success("Share link generated!");
+    } catch (err) {
+      goeyToast.error("Failed to generate link");
+    }
+  };
+
+  const handleRevokeShare = async () => {
+    if (!id) return;
+    try {
+      await revokeShareLink(id);
+      goeyToast.info("Share link revoked");
+    } catch (err) {
+      goeyToast.error("Failed to revoke link");
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    goeyToast.success("Link copied to clipboard!");
+  };
+
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
-    const taskId = result.draggableId;
-    const task = projectTasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    // Permissions check
-    if (!isAdmin && task.assigneeId !== currentUser?.id) {
-      goeyToast.warning("Permission denied", {
-        description: "You can only move tasks that are assigned to you."
-      });
-      return;
+    const { draggableId, destination } = result;
+    const newStatus = destination.droppableId as TaskStatus;
+    
+    const task = tasks.find(t => t.id === draggableId);
+    if (task && task.status !== newStatus) {
+      moveTask(draggableId, newStatus);
     }
-
-    const newStatus = result.destination.droppableId as TaskStatus;
-    if (newStatus !== task.status) {
-      moveTask(taskId, newStatus);
-    }
-  };
-
-  const getAssigneeAvatar = (assigneeId: string | null) => {
-    if (!assigneeId) return undefined;
-    return users.find(u => u.id === assigneeId)?.avatar;
-  };
-
-  const handleDeleteTask = (taskId: string) => {
-    deleteTask(taskId);
-    setActiveDropdownMenu(null);
   };
 
   const handleDeleteProject = async () => {
-    if (!isAdmin) {
-      goeyToast.error('Permission denied', {
-        description: 'Only Admins can delete projects.',
-      });
-      return;
-    }
-    if (id) {
-      await deleteProject(id);
-      navigate('/');
-    }
-  };
-
-  const handleAssignToMe = (taskId: string) => {
-    const task = projectTasks.find(t => t.id === taskId);
-    if (task && currentUser) {
-      updateTask({ ...task, assigneeId: currentUser.id });
-      setActiveDropdownMenu(null);
-    }
-  };
-
-  const handleAssignTo = (taskId: string, newAssigneeId: string) => {
-    const task = projectTasks.find(t => t.id === taskId);
-    if (task) {
-      updateTask({ ...task, assigneeId: newAssigneeId });
-      setActiveDropdownMenu(null);
-    }
+    if (!id) return;
+    await deleteProject(id);
+    navigate('/');
   };
 
   return (
-    <div className="project-board" onClick={() => { setActiveDropdownMenu(null); setIsManageMembersOpen(false); }}>
+    <div className="project-board animate-fade-in">
       <header className="board-header">
-        <div className="board-title">
-          <div className="title-with-members">
-            <h1>{project.name}</h1>
-            <div className="project-members-list">
-              {projectMembers.map(memberId => {
-                const user = users.find(u => String(u.id) === String(memberId));
-                return user ? (
-                  <img key={memberId} src={user.avatar} title={user.name} alt={user.name} className="project-member-avatar" />
-                ) : null;
-              })}
-              {isAdmin && (
-                <div className="manage-members-container" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    className="btn-icon btn-sm btn-manage-members"
-                    onClick={() => setIsManageMembersOpen(!isManageMembersOpen)}
-                    title="Manage Project Members"
-                  >
-                    <Plus size={14} />
-                  </button>
-                  {isManageMembersOpen && (
-                    <div className="manage-members-dropdown glass-panel animate-fade-in">
-                      <h4>Manage Team</h4>
-                      <div className="manage-members-list">
-                        {users.map(user => {
-                          const isMember = projectMembers.some(m => String(m) === String(user.id));
-                          const isOwner = project && String(user.id) === String(project.ownerId);
-                          
-                          return (
-                            <div 
-                              key={user.id} 
-                              className={`manage-member-item ${isMember ? 'active' : ''}`}
-                              onClick={() => handleToggleMember(user.id)}
-                            >
-                              <div className="member-item-main">
-                                <img src={user.avatar} alt={user.name} className="mini-avatar" />
-                                <div className="member-item-info">
-                                  <span className="member-name">{user.name}</span>
-                                  {isOwner && <span className="owner-badge">Owner</span>}
-                                </div>
-                              </div>
-                              <div className="member-item-action">
-                                {isMember ? (
-                                  !isOwner && <span className="remove-text">Remove</span>
-                                ) : (
-                                  <span className="add-text">Add</span>
-                                )}
-                                <div className={`status-indicator ${isMember ? 'active' : ''}`}></div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="board-info">
+          <h1>{project.name}</h1>
           <p>{project.description}</p>
         </div>
         <div className="board-actions">
+          <div className="project-members-list">
+            {projectMembers.map(memberId => {
+              const user = users.find(u => String(u.id) === String(memberId));
+              return user ? (
+                <img key={memberId} src={user.avatar} alt={user.name} className="mini-avatar" title={user.name} />
+              ) : null;
+            })}
+            {isAdmin && (
+              <div className="manage-members-container">
+                <button 
+                  className={`btn-icon btn-add-member ${isManageMembersOpen ? 'active' : ''}`}
+                  onClick={() => setIsManageMembersOpen(!isManageMembersOpen)}
+                  title="Manage Team"
+                >
+                  <UserPlus size={18} />
+                </button>
+                
+                {isManageMembersOpen && (
+                  <div className="manage-members-dropdown glass-panel animate-fade-in">
+                    <h4>Manage Team</h4>
+                    <div className="manage-members-list">
+                      {users.map(user => {
+                        const isMember = projectMembers.some(m => String(m) === String(user.id));
+                        const isOwner = project && String(user.id) === String(project.ownerId);
+                        
+                        return (
+                          <div 
+                            key={user.id} 
+                            className={`manage-member-item ${isMember ? 'active' : ''}`}
+                            onClick={() => handleToggleMember(user.id)}
+                          >
+                            <div className="member-item-main">
+                              <img src={user.avatar} alt={user.name} className="mini-avatar" />
+                              <div className="member-item-info">
+                                <span className="member-name">{user.name}</span>
+                                {isOwner && <span className="owner-badge">Owner</span>}
+                              </div>
+                            </div>
+                            <div className="member-item-action">
+                              {isMember ? (
+                                !isOwner && <span className="remove-text">Remove</span>
+                              ) : (
+                                <span className="add-text">Add</span>
+                              )}
+                              <div className={`status-indicator ${isMember ? 'active' : ''}`}></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           {isAdmin && (
             <>
               <button className="btn btn-primary" onClick={() => setIsTaskModalOpen(true)}>
                 <Plus size={18} /> New Task
               </button>
+              <button className="btn btn-secondary" onClick={() => setIsShareModalOpen(true)}>
+                <Share2 size={18} /> Share
+              </button>
               {!showDeleteConfirm ? (
                 <button
                   id="delete-project-btn"
-                  className="btn btn-danger"
+                  className="btn btn-ghost text-danger"
                   onClick={() => setShowDeleteConfirm(true)}
-                  title="Delete this project and all its tasks"
                 >
                   <Trash2 size={18} /> Delete Project
                 </button>
               ) : (
-                <div className="delete-confirm-inline" onClick={(e) => e.stopPropagation()}>
-                  <span>Delete project &amp; all tasks?</span>
-                  <button
-                    id="confirm-delete-project-btn"
-                    className="btn btn-danger btn-sm"
-                    onClick={handleDeleteProject}
-                  >
-                    Yes, Delete
-                  </button>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => setShowDeleteConfirm(false)}
-                  >
-                    Cancel
-                  </button>
+                <div className="delete-confirm-group animate-fade-in">
+                  <span>Are you sure?</span>
+                  <button className="btn btn-danger btn-sm" onClick={handleDeleteProject}>Confirm</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
                 </div>
               )}
             </>
@@ -235,32 +190,30 @@ export default function ProjectBoard() {
 
       <div className="board-filters glass-panel">
         <div className="filter-group search-group">
-          <Search size={16} className="search-icon" />
+          <Search size={18} className="search-icon" />
           <input
             type="text"
             placeholder="Search tasks..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="filter-group">
-          <Filter size={16} className="filter-icon" />
-          <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+          <Filter size={18} />
+          <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}>
             <option value="All">All Priorities</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
             <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
           </select>
         </div>
         <div className="filter-group">
-          <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
+          <UserPlus size={18} />
+          <select value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}>
             <option value="All">All Assignees</option>
-            <option value="Unassigned">Unassigned</option>
-            {users
-              .filter(u => projectMembers.some(m => String(m) === String(u.id)))
-              .map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
+            {users.filter(u => projectMembers.some(m => String(m) === String(u.id))).map(user => (
+              <option key={user.id} value={user.id}>{user.name}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -268,123 +221,100 @@ export default function ProjectBoard() {
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="board-columns">
           {COLUMNS.map(status => {
-            const columnTasks = projectTasks.filter(t => t.status === status);
+            const columnTasks = filteredTasks.filter(t => t.status === status);
             return (
               <div key={status} className="board-column glass-panel">
                 <div className="column-header">
-                  <div className="column-header-left">
+                  <div className="column-info">
                     <h3>{status}</h3>
                     <span className="task-count">{columnTasks.length}</span>
                   </div>
-                  {isAdmin && (
-                    <button
-                      className="btn-icon btn-sm btn-ghost"
-                      onClick={() => setIsTaskModalOpen(true)}
-                      title={`Add task to ${status}`}
-                    >
-                      <Plus size={16} />
-                    </button>
-                  )}
                 </div>
 
                 <Droppable droppableId={status}>
-                  {(provided, snapshot) => (
+                  {(provided) => (
                     <div
-                      className={`column-task-list ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
-                      ref={provided.innerRef}
                       {...provided.droppableProps}
+                      ref={provided.innerRef}
+                      className="column-task-list"
                     >
                       {columnTasks.map((task, index) => (
                         <Draggable key={task.id} draggableId={task.id} index={index}>
-                          {(provided, snapshot) => (
+                          {(provided) => (
                             <div
-                              className={`task-card ${snapshot.isDragging ? 'dragging' : ''}`}
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
+                              className="task-card glass-panel"
                             >
                               <div className="task-card-header">
-                                <span className={`priority-indicator bg-${task.priority.toLowerCase()}`}></span>
-                                <div className="task-menu-container">
-                                  <button
-                                    className="btn-icon btn-sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveDropdownMenu(activeDropdownMenu === task.id ? null : task.id);
-                                    }}
-                                  >
-                                    <MoreVertical size={14} />
-                                  </button>
-                                  {activeDropdownMenu === task.id && (
-                                    <div className="task-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                                      {!task.assigneeId && !isAdmin && (
-                                        <button
-                                          className="dropdown-item"
-                                          onClick={() => handleAssignToMe(task.id)}
-                                        >
-                                          <UserPlus size={14} /> Assign to me
-                                        </button>
-                                      )}
-                                      {!task.assigneeId && isAdmin && (
-                                        <div className="dropdown-item-select">
-                                          <div className="dropdown-item-select-label">
-                                            <UserPlus size={14} /> Assign
-                                          </div>
-                                          <select
-                                            onChange={(e) => {
-                                              if (e.target.value) {
-                                                handleAssignTo(task.id, e.target.value);
-                                              }
-                                            }}
-                                            onClick={(e) => e.stopPropagation()}
-                                            defaultValue=""
-                                          >
-                                            <option value="" disabled>Select user...</option>
-                                            {users
-                                              .filter(u => projectMembers.some(m => String(m) === String(u.id)))
-                                              .map(u => (
-                                                <option key={u.id} value={u.id}>{u.name}</option>
-                                              ))}
-                                          </select>
-                                        </div>
-                                      )}
-                                      <button
-                                        className="dropdown-item text-danger"
-                                        onClick={() => handleDeleteTask(task.id)}
-                                        disabled={!isAdmin}
-                                        title={!isAdmin ? "Only Admins can delete tasks" : ""}
-                                      >
-                                        <Trash2 size={14} /> Delete Task
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
+                                <span className={`priority-indicator bg-${task.priority.toLowerCase()}`}>
+                                  {task.priority}
+                                </span>
+                                {isAdmin && (
+                                  <div className="card-admin-actions">
+                                    <button 
+                                      className="btn-icon edit-task-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingTask(task);
+                                      }}
+                                    >
+                                      <Edit2 size={14} />
+                                    </button>
+                                    <button 
+                                      className="btn-icon delete-task-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteTask(task.id);
+                                      }}
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                               <h4 className="task-title">{task.title}</h4>
                               <p className="task-desc">{task.description}</p>
-
+                              
                               {task.subtasks && task.subtasks.length > 0 && (
                                 <div className="task-subtasks">
                                   <div className="subtask-progress">
-                                    <CheckSquare size={12} />
-                                    <span>{task.subtasks.filter(st => st.isCompleted).length}/{task.subtasks.length}</span>
+                                    <div 
+                                      className="progress-bar" 
+                                      style={{ width: `${(task.subtasks.filter(s => s.isCompleted).length / task.subtasks.length) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="subtask-header">
+                                    <span className="subtask-text">
+                                      {task.subtasks.filter(s => s.isCompleted).length}/{task.subtasks.length} subtasks
+                                    </span>
                                   </div>
                                   <div className="subtask-list">
                                     {task.subtasks.map(st => (
-                                      <div key={st.id} className={`subtask-item ${st.isCompleted ? 'completed' : ''}`} onClick={(e) => { e.stopPropagation(); toggleSubtask(task.id, st.id); }}>
-                                        <div className={`checkbox ${st.isCompleted ? 'checked' : ''}`}></div>
-                                        <span>{st.title}</span>
+                                      <div 
+                                        key={st.id} 
+                                        className={`subtask-item ${st.isCompleted ? 'completed' : ''}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleSubtask(task.id, st.id);
+                                        }}
+                                      >
+                                        <div className={`subtask-checkbox ${st.isCompleted ? 'checked' : ''}`}>
+                                          {st.isCompleted && <Check size={10} />}
+                                        </div>
+                                        <span className="subtask-title-text">{st.title}</span>
                                       </div>
                                     ))}
                                   </div>
                                 </div>
                               )}
-
-                              <div className="task-footer">
+                              
+                              <div className="task-card-footer">
                                 {task.dueDate && (
                                   <div className="task-date">
                                     <Calendar size={12} />
-                                    <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                    <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                                   </div>
                                 )}
                                 <div className="task-assignees">
@@ -409,8 +339,97 @@ export default function ProjectBoard() {
         </div>
       </DragDropContext>
 
-      {isTaskModalOpen && id && (
-        <TaskModal projectId={id as string} onClose={() => setIsTaskModalOpen(false)} />
+      {(isTaskModalOpen || editingTask) && (
+        <TaskModal 
+          projectId={id!} 
+          task={editingTask}
+          onClose={() => {
+            setIsTaskModalOpen(false);
+            setEditingTask(null);
+          }} 
+        />
+      )}
+
+      {isShareModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content glass-panel animate-fade-in" style={{ maxWidth: '450px' }}>
+            <div className="modal-header">
+              <h2>Share Project Progress</h2>
+              <button className="btn-icon" onClick={() => setIsShareModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="share-modal-body">
+              <div className="share-info-card">
+                <div className="share-info-icon">
+                  <Share2 size={24} />
+                </div>
+                <div className="share-info-text">
+                  <p><strong>External Progress Sharing</strong></p>
+                  <p>Share a live, read-only view of this project board with clients or stakeholders.</p>
+                </div>
+              </div>
+              
+              {(project as any).shareToken ? (
+                <div className="share-link-section">
+                  <label className="share-label">Public Access Link</label>
+                  <div className="share-link-input-group">
+                    <div className="share-url-field">
+                      <LinkIcon size={14} className="link-icon" />
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={`${window.location.origin}/shared/${(project as any).shareToken}`} 
+                      />
+                    </div>
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={() => copyToClipboard(`${window.location.origin}/shared/${(project as any).shareToken}`)}
+                      title="Copy to clipboard"
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
+                  
+                  <div className="share-footer-actions">
+                    <a 
+                      href={`/shared/${(project as any).shareToken}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="share-preview-link"
+                    >
+                      <Eye size={14} /> Open Public Preview
+                    </a>
+                    <button 
+                      className="btn-text text-danger" 
+                      onClick={handleRevokeShare}
+                    >
+                      Revoke Public Access
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="share-setup-state">
+                  <div className="share-benefits">
+                    <div className="benefit-item">
+                      <CheckSquare size={14} className="text-success" />
+                      <span>Real-time progress tracking</span>
+                    </div>
+                    <div className="benefit-item">
+                      <CheckSquare size={14} className="text-success" />
+                      <span>No account required for clients</span>
+                    </div>
+                    <div className="benefit-item">
+                      <CheckSquare size={14} className="text-success" />
+                      <span>Secure read-only access</span>
+                    </div>
+                  </div>
+                  <button className="btn btn-primary btn-block" onClick={handleGenerateShare}>
+                    Generate Public Share Link
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

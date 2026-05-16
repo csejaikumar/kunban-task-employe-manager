@@ -13,6 +13,8 @@ interface DataContextType {
   updateProject: (project: Project) => void;
   toggleProjectMember: (projectId: string, userId: string) => void;
   deleteProject: (id: string) => void;
+  generateShareLink: (projectId: string) => Promise<string>;
+  revokeShareLink: (projectId: string) => Promise<void>;
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (task: Task) => void;
   deleteTask: (id: string) => void;
@@ -180,6 +182,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
 
+  const generateShareLink = async (projectId: string) => {
+    const res = await fetch(`${API_URL}/api/projects/${projectId}/share`, { method: 'POST' });
+    const data = await res.json();
+    setProjects(prev => prev.map(p => {
+      const pid = p.id || (p as any)._id;
+      return String(pid) === String(projectId) ? data : p;
+    }));
+    return data.shareToken;
+  };
+
+  const revokeShareLink = async (projectId: string) => {
+    const res = await fetch(`${API_URL}/api/projects/${projectId}/share`, { method: 'DELETE' });
+    const data = await res.json();
+    setProjects(prev => prev.map(p => {
+      const pid = p.id || (p as any)._id;
+      return String(pid) === String(projectId) ? data : p;
+    }));
+  };
+
   const deleteProject = async (id: string) => {
     const promise = fetch(`${API_URL}/api/projects/${id}`, { method: 'DELETE' })
       .then(() => {
@@ -295,7 +316,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <DataContext.Provider value={{ projects, tasks, isLoading, addProject, updateProject, deleteProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser, toggleProjectMember }}>
+    <DataContext.Provider value={{ projects, tasks, isLoading, addProject, updateProject, deleteProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser, toggleProjectMember, generateShareLink, revokeShareLink }}>
       {children}
     </DataContext.Provider>
   );
