@@ -157,7 +157,10 @@
 
 .page-content {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Allow flex child to shrink below content size */
   padding: 2rem;
   background-color: var(--bg-body);
+  overflow: hidden; /* Prevent page-level scroll, handled by internal components */
 }

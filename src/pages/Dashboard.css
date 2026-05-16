@@ -4,6 +4,9 @@
   gap: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.5rem; /* Space for scrollbar */
 }
 
 .dashboard-header {
