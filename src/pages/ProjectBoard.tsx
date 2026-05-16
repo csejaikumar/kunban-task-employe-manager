@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import type { TaskStatus } from '../types';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { Plus, MoreVertical, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus, Share2, Link as LinkIcon, Copy, X, Eye, Check, Edit2 } from 'lucide-react';
+import { Plus, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus, Share2, Link as LinkIcon, Copy, X, Eye, Check, Edit2 } from 'lucide-react';
 import TaskModal from '../components/modals/TaskModal';
 import { goeyToast } from 'goey-toast';
 import './ProjectBoard.css';
@@ -15,11 +15,10 @@ const COLUMNS: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 export default function ProjectBoard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, tasks, moveTask, toggleSubtask, deleteTask, updateTask, deleteProject, isLoading, toggleProjectMember, generateShareLink, revokeShareLink } = useData();
+  const { projects, tasks, moveTask, toggleSubtask, deleteTask, deleteProject, isLoading, toggleProjectMember, generateShareLink, revokeShareLink } = useData();
   const { currentUser, users } = useAuth();
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [activeDropdownMenu, setActiveDropdownMenu] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('All');
   const [filterAssignee, setFilterAssignee] = useState<string>('All');

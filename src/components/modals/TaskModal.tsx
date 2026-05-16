@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { X, Plus, Trash2 } from 'lucide-react';
+import type { Task } from '../../types';
 
 export default function TaskModal({ projectId, onClose, task }: { projectId: string, onClose: () => void, task?: Task }) {
   const { addTask, updateTask, projects } = useData();
