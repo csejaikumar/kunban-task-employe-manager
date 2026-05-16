@@ -79,7 +79,9 @@
   gap: 1.5rem;
   flex: 1;
   overflow-x: auto;
+  overflow-y: hidden; /* Prevent vertical overflow of the columns container */
   padding-bottom: 1rem;
+  align-items: stretch; /* Ensure columns stretch to full height */
 }
 
 .board-column {
@@ -90,6 +92,7 @@
   border-radius: var(--radius-xl);
   background-color: var(--bg-board);
   border: 1px solid rgba(0,0,0,0.03);
+  max-height: 100%; /* Constrain height to parent to enable internal scroll */
 }
 
 .column-header-left {
@@ -104,6 +107,7 @@
   justify-content: space-between;
   padding: 1rem;
   border-bottom: 1px solid rgba(0,0,0,0.05);
+  flex-shrink: 0; /* Header should not shrink */
 }
 
 .column-header h3 {
@@ -131,6 +135,35 @@
   flex-direction: column;
   gap: 0.75rem;
   transition: background-color var(--transition-fast);
+  
+  /* Custom Scrollbar for better UI */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.1) transparent;
+}
+
+.column-task-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.column-task-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.column-task-list::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.1);
+  border-radius: 20px;
+}
+
+[data-theme='dark'] .column-task-list::-webkit-scrollbar-thumb {
+  background-color: rgba(255,255,255,0.1);
+}
+
+.column-task-list:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.2);
+}
+
+[data-theme='dark'] .column-task-list:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(255,255,255,0.2);
 }
 
 .column-task-list.dragging-over {
@@ -874,12 +907,13 @@
 
 /* ── Public View ────────────────────────────────── */
 .public-view {
-  padding: 2rem 3rem;
-  padding-bottom: 5rem;
+  padding: 1.5rem 2rem;
   max-width: 1600px;
   margin: 0 auto;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden; /* Prevent page scroll to allow columns to scroll */
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 768px) {
@@ -901,6 +935,7 @@
   margin-bottom: 2rem;
   box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.15);
   border: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0; /* Prevent banner from shrinking in flex layout */
 }
 
 .banner-icon {
