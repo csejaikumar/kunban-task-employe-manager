@@ -40,16 +40,18 @@ export default function Sidebar({ onNewProject }: { onNewProject: () => void }) 
           </div>
           
           <div className="project-list">
-            {projects.map(project => (
-              <NavLink 
-                key={project.id} 
-                to={`/project/${project.id}`}
-                className={({ isActive }) => `nav-item project-item ${isActive ? 'active' : ''}`}
-              >
-                <FolderKanban size={18} />
-                <span className="truncate">{project.name}</span>
-              </NavLink>
-            ))}
+            {projects
+              .filter(project => isAdmin || (currentUser && project.members?.includes(currentUser.id)))
+              .map(project => (
+                <NavLink 
+                  key={project.id} 
+                  to={`/project/${project.id}`}
+                  className={({ isActive }) => `nav-item project-item ${isActive ? 'active' : ''}`}
+                >
+                  <FolderKanban size={18} />
+                  <span className="truncate">{project.name}</span>
+                </NavLink>
+              ))}
           </div>
         </div>
       </nav>

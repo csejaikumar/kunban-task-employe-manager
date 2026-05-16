@@ -8,8 +8,10 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 interface DataContextType {
   projects: Project[];
   tasks: Task[];
+  isLoading: boolean;
   addProject: (project: Omit<Project, 'id'>) => void;
   updateProject: (project: Project) => void;
+  toggleProjectMember: (projectId: string, userId: string) => void;
   deleteProject: (id: string) => void;
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (task: Task) => void;
@@ -26,28 +28,50 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchProjects();
-    fetchTasks();
+    const loadData = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+      try {
+        setIsLoading(true);
+        await Promise.all([
+          fetchProjects(controller.signal),
+          fetchTasks(controller.signal)
+        ]);
+      } catch (err) {
+        console.error('Initial data fetch failed or timed out:', err);
+        goeyToast.error('Connection timed out', {
+          description: 'The server is not responding. Please check your connection.'
+        });
+      } finally {
+        clearTimeout(timeoutId);
+        setIsLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
-  const fetchProjects = async () => {
+
+
+  const fetchProjects = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`${API_URL}/api/projects`);
+      const res = await fetch(`${API_URL}/api/projects`, { signal });
       const data = await res.json();
-      setProjects(data);
+      setProjects(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching projects:', err);
       goeyToast.error('Failed to load projects');
     }
   };
 
-  const fetchTasks = async () => {
+  const fetchTasks = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`${API_URL}/api/tasks`);
+      const res = await fetch(`${API_URL}/api/tasks`, { signal });
       const data = await res.json();
-      setTasks(data);
+      setTasks(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching tasks:', err);
       goeyToast.error('Failed to load tasks');
@@ -77,15 +101,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProject = async (updatedProject: Project) => {
-    const promise = fetch(`${API_URL}/api/projects/${updatedProject.id}`, {
+    const projectId = updatedProject.id || (updatedProject as any)._id;
+    const promise = fetch(`${API_URL}/api/projects/${projectId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedProject),
     }).then(async res => {
       const data = await res.json();
-      setProjects(prev => prev.map(p => p.id === data.id ? data : p));
+      setProjects(prev => prev.map(p => {
+        const pid = p.id || (p as any)._id;
+        const did = data.id || (data as any)._id;
+        return String(pid) === String(did) ? data : p;
+      }));
       return data;
     });
+
 
     return goeyToast.promise(promise, {
       loading: 'Updating project...',
@@ -97,6 +127,58 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
     });
   };
+
+  const toggleProjectMember = async (projectId: string, userId: string) => {
+    // 1. Get current project state directly from state
+    let action = '';
+    setProjects(prev => {
+      const project = prev.find(p => String(p.id) === String(projectId) || String((p as any)._id) === String(projectId));
+      if (!project) return prev;
+
+      // 2. Security check
+      if (String(userId).trim() === String(project.ownerId).trim()) {
+        goeyToast.info("Owner cannot be removed", {
+          description: "The project owner must always be a member."
+        });
+        return prev;
+      }
+
+      const currentMembers = Array.isArray(project.members) ? project.members : [];
+      const isAlreadyMember = currentMembers.some(m => String(m).trim() === String(userId).trim());
+      
+      const newMembers = isAlreadyMember
+        ? currentMembers.filter(m => String(m).trim() !== String(userId).trim())
+        : [...currentMembers, userId];
+
+      action = isAlreadyMember ? 'removed' : 'added';
+      const updatedProject = { ...project, members: newMembers };
+      
+      // 3. Push to server
+      const id = project.id || (project as any)._id;
+      fetch(`${API_URL}/api/projects/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProject),
+      }).then(res => {
+        if (res.ok) {
+          goeyToast.success(`Member ${action} successfully`);
+        } else {
+          throw new Error('Server update failed');
+        }
+      }).catch(err => {
+        console.error('Failed to sync project members:', err);
+        goeyToast.error(`Failed to ${action.slice(0, -2)} member`);
+        fetchProjects(); // Re-sync on error
+      });
+
+      return prev.map(p => {
+        const pid = p.id || (p as any)._id;
+        const did = updatedProject.id || (updatedProject as any)._id;
+        return String(pid) === String(did) ? updatedProject : p;
+      });
+    });
+  };
+
 
   const deleteProject = async (id: string) => {
     const promise = fetch(`${API_URL}/api/projects/${id}`, { method: 'DELETE' })
@@ -213,7 +295,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <DataContext.Provider value={{ projects, tasks, addProject, updateProject, deleteProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser }}>
+    <DataContext.Provider value={{ projects, tasks, isLoading, addProject, updateProject, deleteProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser, toggleProjectMember }}>
       {children}
     </DataContext.Provider>
   );

@@ -4,8 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { X, Plus, Trash2 } from 'lucide-react';
 
 export default function TaskModal({ projectId, onClose }: { projectId: string, onClose: () => void }) {
-  const { addTask } = useData();
+  const { addTask, projects } = useData();
   const { users } = useAuth();
+  
+  const project = projects.find(p => String(p.id) === String(projectId) || String((p as any)._id) === String(projectId));
+  const projectMembers = Array.isArray(project?.members) ? project.members : [];
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -87,9 +90,11 @@ export default function TaskModal({ projectId, onClose }: { projectId: string, o
             <label htmlFor="taskAssignee">Assignee</label>
             <select id="taskAssignee" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
               <option value="">Unassigned</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-              ))}
+              {users
+                .filter(u => projectMembers.some(m => String(m) === String(u.id)))
+                .map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                ))}
             </select>
           </div>
 

@@ -15,26 +15,41 @@ const COLUMNS: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 export default function ProjectBoard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, tasks, moveTask, toggleSubtask, deleteTask, updateTask, deleteProject } = useData();
+  const { projects, tasks, moveTask, toggleSubtask, deleteTask, updateTask, deleteProject, isLoading, toggleProjectMember } = useData();
   const { currentUser, users } = useAuth();
-  
+
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [activeDropdownMenu, setActiveDropdownMenu] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('All');
   const [filterAssignee, setFilterAssignee] = useState<string>('All');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
 
-  const project = projects.find(p => p.id === id);
+  const project = projects.find(p => String(p.id) === String(id) || String((p as any)._id) === String(id));
+
+  // If projects are still loading, show a loading state
+  if (isLoading && id) {
+    return <div className="loading-container">Loading project...</div>;
+  }
+
   if (!project) return <Navigate to="/" replace />;
 
-  let projectTasks = tasks.filter(t => t.projectId === id);
-
   const isAdmin = currentUser?.role === 'Admin';
+  const projectMembers = Array.isArray(project.members) ? project.members : [];
+  const isMember = projectMembers.some(m => String(m) === String(currentUser?.id));
 
-  // Apply Role-Based Visibility Filter
+
+
+  if (!isAdmin && !isMember) {
+    return <Navigate to="/" replace />;
+  }
+
+  let projectTasks = tasks.filter(t => String(t.projectId) === String(id));
+
+  // Restore Role-Based Task Visibility Filter for Employees
   if (!isAdmin) {
-    projectTasks = projectTasks.filter(t => 
+    projectTasks = projectTasks.filter(t =>
       !t.assigneeId || t.assigneeId === currentUser?.id
     );
   }
@@ -47,14 +62,19 @@ export default function ProjectBoard() {
     projectTasks = projectTasks.filter(t => t.priority === filterPriority);
   }
   if (filterAssignee !== 'All') {
-    projectTasks = projectTasks.filter(t => 
+    projectTasks = projectTasks.filter(t =>
       filterAssignee === 'Unassigned' ? !t.assigneeId : t.assigneeId === filterAssignee
     );
   }
-  
+
+  const handleToggleMember = (userId: string) => {
+    if (!id) return;
+    toggleProjectMember(id, userId);
+  };
+
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
+
     const taskId = result.draggableId;
     const task = projectTasks.find(t => t.id === taskId);
     if (!task) return;
@@ -113,10 +133,66 @@ export default function ProjectBoard() {
   };
 
   return (
-    <div className="project-board" onClick={() => setActiveDropdownMenu(null)}>
+    <div className="project-board" onClick={() => { setActiveDropdownMenu(null); setIsManageMembersOpen(false); }}>
       <header className="board-header">
         <div className="board-title">
-          <h1>{project.name}</h1>
+          <div className="title-with-members">
+            <h1>{project.name}</h1>
+            <div className="project-members-list">
+              {projectMembers.map(memberId => {
+                const user = users.find(u => String(u.id) === String(memberId));
+                return user ? (
+                  <img key={memberId} src={user.avatar} title={user.name} alt={user.name} className="project-member-avatar" />
+                ) : null;
+              })}
+              {isAdmin && (
+                <div className="manage-members-container" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    className="btn-icon btn-sm btn-manage-members"
+                    onClick={() => setIsManageMembersOpen(!isManageMembersOpen)}
+                    title="Manage Project Members"
+                  >
+                    <Plus size={14} />
+                  </button>
+                  {isManageMembersOpen && (
+                    <div className="manage-members-dropdown glass-panel animate-fade-in">
+                      <h4>Manage Team</h4>
+                      <div className="manage-members-list">
+                        {users.map(user => {
+                          const isMember = projectMembers.some(m => String(m) === String(user.id));
+                          const isOwner = project && String(user.id) === String(project.ownerId);
+                          
+                          return (
+                            <div 
+                              key={user.id} 
+                              className={`manage-member-item ${isMember ? 'active' : ''}`}
+                              onClick={() => handleToggleMember(user.id)}
+                            >
+                              <div className="member-item-main">
+                                <img src={user.avatar} alt={user.name} className="mini-avatar" />
+                                <div className="member-item-info">
+                                  <span className="member-name">{user.name}</span>
+                                  {isOwner && <span className="owner-badge">Owner</span>}
+                                </div>
+                              </div>
+                              <div className="member-item-action">
+                                {isMember ? (
+                                  !isOwner && <span className="remove-text">Remove</span>
+                                ) : (
+                                  <span className="add-text">Add</span>
+                                )}
+                                <div className={`status-indicator ${isMember ? 'active' : ''}`}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
           <p>{project.description}</p>
         </div>
         <div className="board-actions">
@@ -160,9 +236,9 @@ export default function ProjectBoard() {
       <div className="board-filters glass-panel">
         <div className="filter-group search-group">
           <Search size={16} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search tasks..." 
+          <input
+            type="text"
+            placeholder="Search tasks..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -180,9 +256,11 @@ export default function ProjectBoard() {
           <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}>
             <option value="All">All Assignees</option>
             <option value="Unassigned">Unassigned</option>
-            {users.map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
+            {users
+              .filter(u => projectMembers.some(m => String(m) === String(u.id)))
+              .map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
           </select>
         </div>
       </div>
@@ -199,8 +277,8 @@ export default function ProjectBoard() {
                     <span className="task-count">{columnTasks.length}</span>
                   </div>
                   {isAdmin && (
-                    <button 
-                      className="btn-icon btn-sm btn-ghost" 
+                    <button
+                      className="btn-icon btn-sm btn-ghost"
                       onClick={() => setIsTaskModalOpen(true)}
                       title={`Add task to ${status}`}
                     >
@@ -208,10 +286,10 @@ export default function ProjectBoard() {
                     </button>
                   )}
                 </div>
-                
+
                 <Droppable droppableId={status}>
                   {(provided, snapshot) => (
-                    <div 
+                    <div
                       className={`column-task-list ${snapshot.isDraggingOver ? 'dragging-over' : ''}`}
                       ref={provided.innerRef}
                       {...provided.droppableProps}
@@ -228,11 +306,11 @@ export default function ProjectBoard() {
                               <div className="task-card-header">
                                 <span className={`priority-indicator bg-${task.priority.toLowerCase()}`}></span>
                                 <div className="task-menu-container">
-                                  <button 
-                                    className="btn-icon btn-sm" 
-                                    onClick={(e) => { 
-                                      e.stopPropagation(); 
-                                      setActiveDropdownMenu(activeDropdownMenu === task.id ? null : task.id); 
+                                  <button
+                                    className="btn-icon btn-sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdownMenu(activeDropdownMenu === task.id ? null : task.id);
                                     }}
                                   >
                                     <MoreVertical size={14} />
@@ -240,8 +318,8 @@ export default function ProjectBoard() {
                                   {activeDropdownMenu === task.id && (
                                     <div className="task-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                                       {!task.assigneeId && !isAdmin && (
-                                        <button 
-                                          className="dropdown-item" 
+                                        <button
+                                          className="dropdown-item"
                                           onClick={() => handleAssignToMe(task.id)}
                                         >
                                           <UserPlus size={14} /> Assign to me
@@ -252,7 +330,7 @@ export default function ProjectBoard() {
                                           <div className="dropdown-item-select-label">
                                             <UserPlus size={14} /> Assign
                                           </div>
-                                          <select 
+                                          <select
                                             onChange={(e) => {
                                               if (e.target.value) {
                                                 handleAssignTo(task.id, e.target.value);
@@ -262,14 +340,16 @@ export default function ProjectBoard() {
                                             defaultValue=""
                                           >
                                             <option value="" disabled>Select user...</option>
-                                            {users.map(u => (
-                                              <option key={u.id} value={u.id}>{u.name}</option>
-                                            ))}
+                                            {users
+                                              .filter(u => projectMembers.some(m => String(m) === String(u.id)))
+                                              .map(u => (
+                                                <option key={u.id} value={u.id}>{u.name}</option>
+                                              ))}
                                           </select>
                                         </div>
                                       )}
-                                      <button 
-                                        className="dropdown-item text-danger" 
+                                      <button
+                                        className="dropdown-item text-danger"
                                         onClick={() => handleDeleteTask(task.id)}
                                         disabled={!isAdmin}
                                         title={!isAdmin ? "Only Admins can delete tasks" : ""}
@@ -282,7 +362,7 @@ export default function ProjectBoard() {
                               </div>
                               <h4 className="task-title">{task.title}</h4>
                               <p className="task-desc">{task.description}</p>
-                              
+
                               {task.subtasks && task.subtasks.length > 0 && (
                                 <div className="task-subtasks">
                                   <div className="subtask-progress">
@@ -304,7 +384,7 @@ export default function ProjectBoard() {
                                 {task.dueDate && (
                                   <div className="task-date">
                                     <Calendar size={12} />
-                                    <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}</span>
+                                    <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                                   </div>
                                 )}
                                 <div className="task-assignees">

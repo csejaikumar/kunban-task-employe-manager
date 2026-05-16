@@ -5,8 +5,13 @@ import { CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import './Dashboard.css';
 
 export default function Dashboard() {
-  const { tasks, projects } = useData();
+  const { tasks, projects, isLoading } = useData();
   const { currentUser, users } = useAuth();
+
+  if (isLoading) {
+    return <div className="loading-container">Loading dashboard...</div>;
+  }
+
 
   const isAdmin = currentUser?.role === 'Admin';
 
@@ -40,7 +45,7 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Welcome back, {currentUser?.name.split(' ')[0]} 👋</h1>
+        <h1>Welcome back, {(currentUser?.name || 'User').split(' ')[0]} 👋</h1>
         <p>Here's what's happening with your projects today.</p>
       </header>
 

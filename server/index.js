@@ -107,6 +107,24 @@ app.post('/api/projects', async (req, res) => {
   }
 });
 
+app.put('/api/projects/:id', async (req, res) => {
+  try {
+    console.log('Updating project ID:', req.params.id);
+    console.log('Update body:', JSON.stringify(req.body));
+    const updatedProject = await Project.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updatedProject) {
+      console.log('Project not found for ID:', req.params.id);
+      return res.status(404).json({ message: 'Project not found' });
+    }
+    console.log('Successfully updated project:', updatedProject.name);
+    res.json(updatedProject);
+  } catch (err) {
+    console.error('Error updating project:', err.message);
+    res.status(400).json({ message: err.message });
+  }
+});
+
+
 app.delete('/api/projects/:id', async (req, res) => {
   try {
     const projectId = req.params.id;

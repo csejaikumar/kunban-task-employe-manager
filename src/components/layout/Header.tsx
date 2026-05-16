@@ -25,11 +25,11 @@ export default function Header() {
         </button>
         
         <div className="user-profile">
-          <img src={currentUser?.avatar} alt={currentUser?.name} className="header-avatar" />
+          <img src={currentUser?.avatar} alt={currentUser?.name || 'User'} className="header-avatar" />
           <div className="header-user-info">
-            <span className="user-name">{currentUser?.name}</span>
-            <span className={`user-role badge-${currentUser?.role.toLowerCase()}`}>
-              {currentUser?.role}
+            <span className="user-name">{currentUser?.name || 'User'}</span>
+            <span className={`user-role badge-${(currentUser?.role || 'Employee').toLowerCase()}`}>
+              {currentUser?.role || 'Employee'}
             </span>
           </div>
         </div>

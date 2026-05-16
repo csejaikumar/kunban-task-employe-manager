@@ -1,15 +1,25 @@
 import { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import { X } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import './Modal.css';
 
 export default function ProjectModal({ onClose }: { onClose: () => void }) {
   const { addProject } = useData();
-  const { currentUser } = useAuth();
+  const { currentUser, users } = useAuth();
   
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState<string[]>(currentUser ? [currentUser.id] : []);
+
+  const toggleMember = (userId: string) => {
+    if (userId === currentUser?.id) return; // Owner always included
+    setSelectedMembers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId) 
+        : [...prev, userId]
+    );
+  };
 
   const handleSubmit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
@@ -19,7 +29,7 @@ export default function ProjectModal({ onClose }: { onClose: () => void }) {
       name,
       description,
       ownerId: currentUser!.id,
-      members: [currentUser!.id],
+      members: selectedMembers,
     });
     
     onClose();
@@ -56,6 +66,30 @@ export default function ProjectModal({ onClose }: { onClose: () => void }) {
               rows={3}
             />
           </div>
+
+          <div className="form-group">
+            <label>Assign Team Members</label>
+            <div className="member-selection-list">
+              {users.map(user => (
+                <div 
+                  key={user.id} 
+                  className={`member-select-item ${selectedMembers.includes(user.id) ? 'selected' : ''} ${user.id === currentUser?.id ? 'disabled' : ''}`}
+                  onClick={() => toggleMember(user.id)}
+                >
+                  <div className="member-info">
+                    <img src={user.avatar} alt={user.name} className="mini-avatar" />
+                    <div className="user-details">
+                      <span className="user-name">{user.name}</span>
+                      <span className="user-role">{user.role}</span>
+                    </div>
+                  </div>
+                  <div className="checkbox">
+                    {selectedMembers.includes(user.id) && <Check size={14} />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
@@ -66,3 +100,4 @@ export default function ProjectModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+
