@@ -84,6 +84,7 @@
   padding-bottom: 1rem;
   align-items: stretch;
   min-height: 0;
+  height: calc(100vh - 280px); /* Absolute constraint to force internal scroll */
 }
 
 .board-column {
@@ -143,28 +144,27 @@
 }
 
 .column-task-list::-webkit-scrollbar {
-  width: 6px;
+  width: 8px; /* Slightly wider */
 }
 
 .column-task-list::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(0,0,0,0.05); /* Visible track */
+  border-radius: 10px;
 }
 
 .column-task-list::-webkit-scrollbar-thumb {
-  background-color: rgba(0,0,0,0.1);
+  background-color: var(--primary); /* Use primary color for thumb */
   border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
-[data-theme='dark'] .column-task-list::-webkit-scrollbar-thumb {
-  background-color: rgba(255,255,255,0.1);
+[data-theme='dark'] .column-task-list::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
 }
 
 .column-task-list:hover::-webkit-scrollbar-thumb {
-  background-color: rgba(0,0,0,0.2);
-}
-
-[data-theme='dark'] .column-task-list:hover::-webkit-scrollbar-thumb {
-  background-color: rgba(255,255,255,0.2);
+  background-color: var(--primary-hover);
 }
 
 .column-task-list.dragging-over {
