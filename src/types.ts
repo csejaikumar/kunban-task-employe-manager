@@ -14,6 +14,7 @@ export interface Project {
   description: string;
   ownerId: string;
   members: string[]; // User IDs
+  subAdmins?: string[]; // User IDs
 }
 
 export type TaskStatus = 'Todo' | 'In Progress' | 'Review' | 'Done';

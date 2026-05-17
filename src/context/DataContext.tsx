@@ -155,8 +155,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ? currentMembers.filter(m => String(m).trim() !== String(userId).trim())
         : [...currentMembers, userId];
 
+      const currentSubAdmins = Array.isArray((project as any).subAdmins) ? (project as any).subAdmins : [];
+      const newSubAdmins = isAlreadyMember
+        ? currentSubAdmins.filter(m => String(m).trim() !== String(userId).trim())
+        : currentSubAdmins;
+
       action = isAlreadyMember ? 'removed' : 'added';
-      const updatedProject = { ...project, members: newMembers };
+      const updatedProject = { ...project, members: newMembers, subAdmins: newSubAdmins };
       
       // 3. Push to server
       const id = project.id || (project as any)._id;

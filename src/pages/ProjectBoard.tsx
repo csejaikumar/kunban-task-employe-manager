@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import type { TaskStatus } from '../types';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { Plus, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus, Share2, Link as LinkIcon, Copy, X, Eye, Check, Edit2, Video } from 'lucide-react';
+import { Plus, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus, Share2, Link as LinkIcon, Copy, X, Eye, Check, Edit2, Video, Shield } from 'lucide-react';
 import TaskModal from '../components/modals/TaskModal';
 import { goeyToast } from 'goey-toast';
 import './ProjectBoard.css';
@@ -15,7 +15,7 @@ const COLUMNS: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 export default function ProjectBoard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, tasks, moveTask, toggleSubtask, deleteTask, deleteProject, isLoading, toggleProjectMember, generateShareLink, revokeShareLink, checkActiveHuddle, startHuddle } = useData();
+  const { projects, tasks, moveTask, toggleSubtask, deleteTask, deleteProject, updateProject, isLoading, toggleProjectMember, generateShareLink, revokeShareLink, checkActiveHuddle, startHuddle } = useData();
   const { currentUser, users } = useAuth();
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -45,7 +45,14 @@ export default function ProjectBoard() {
   if (isLoading) return <div className="loading-container">Loading project...</div>;
   if (!project) return <Navigate to="/" />;
 
-  const isAdmin = currentUser?.role === 'Admin';
+  const isGlobalAdmin = currentUser?.role === 'Admin';
+  const isProjectOwner = project && String(currentUser?.id) === String(project.ownerId);
+  const isSubAdmin = project && Array.isArray((project as any).subAdmins) && 
+                     (project as any).subAdmins.some((subId: any) => String(subId) === String(currentUser?.id));
+  const isProjectAdmin = isGlobalAdmin || isProjectOwner || isSubAdmin;
+  const canManageSubAdmins = isGlobalAdmin || isProjectOwner;
+  const canDeleteProject = isGlobalAdmin || isProjectOwner;
+
   const projectTasks = tasks.filter(t => t.projectId === (project.id || (project as any)._id));
   const projectMembers = Array.isArray(project.members) ? project.members : [];
 
@@ -64,6 +71,25 @@ export default function ProjectBoard() {
   const handleToggleMember = (userId: string) => {
     if (!id) return;
     toggleProjectMember(id, userId);
+  };
+
+  const handleToggleSubAdmin = async (userId: string) => {
+    if (!project || !id) return;
+    const currentSubAdmins = Array.isArray((project as any).subAdmins) ? (project as any).subAdmins : [];
+    const isAlreadySubAdmin = currentSubAdmins.some(m => String(m) === String(userId));
+    
+    const newSubAdmins = isAlreadySubAdmin
+      ? currentSubAdmins.filter(m => String(m) !== String(userId))
+      : [...currentSubAdmins, userId];
+      
+    try {
+      await updateProject({
+        ...project,
+        subAdmins: newSubAdmins
+      });
+    } catch (err) {
+      goeyToast.error("Failed to update sub-admin status");
+    }
   };
 
   const handleGenerateShare = async () => {
@@ -101,7 +127,7 @@ export default function ProjectBoard() {
     if (task) {
       // Permission check: regular employees can only move their own tasks or unassigned tasks
       const isAssignedToOther = task.assigneeId && task.assigneeId !== currentUser?.id;
-      if (!isAdmin && isAssignedToOther) {
+      if (!isProjectAdmin && isAssignedToOther) {
         goeyToast.error("Permission Denied", {
           description: "Only admins or the assigned employee can move this task."
         });
@@ -150,7 +176,7 @@ export default function ProjectBoard() {
                 <img key={memberId} src={user.avatar} alt={user.name} className="mini-avatar" title={user.name} />
               ) : null;
             })}
-            {isAdmin && (
+            {isProjectAdmin && (
               <div className="manage-members-container">
                 <button 
                   className={`btn-icon btn-add-member ${isManageMembersOpen ? 'active' : ''}`}
@@ -167,6 +193,8 @@ export default function ProjectBoard() {
                       {users.map(user => {
                         const isMember = projectMembers.some(m => String(m) === String(user.id));
                         const isOwner = project && String(user.id) === String(project.ownerId);
+                        const isUserSubAdmin = project && Array.isArray((project as any).subAdmins) && 
+                                               (project as any).subAdmins.some((subId: any) => String(subId) === String(user.id));
                         
                         return (
                           <div 
@@ -179,9 +207,24 @@ export default function ProjectBoard() {
                               <div className="member-item-info">
                                 <span className="member-name">{user.name}</span>
                                 {isOwner && <span className="owner-badge">Owner</span>}
+                                {isUserSubAdmin && !isOwner && <span className="sub-admin-badge">Sub Admin</span>}
                               </div>
                             </div>
                             <div className="member-item-action">
+                              {isMember && !isOwner && (
+                                <button
+                                  className={`btn-icon btn-subadmin ${isUserSubAdmin ? 'active' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleSubAdmin(user.id);
+                                  }}
+                                  title={isUserSubAdmin ? "Demote from Sub Admin" : "Promote to Sub Admin"}
+                                  disabled={!canManageSubAdmins}
+                                  type="button"
+                                >
+                                  <Shield size={14} />
+                                </button>
+                              )}
                               {isMember ? (
                                 !isOwner && <span className="remove-text">Remove</span>
                               ) : (
@@ -212,11 +255,13 @@ export default function ProjectBoard() {
             <Share2 size={18} /> Share
           </button>
 
-          {isAdmin && (
+          {isProjectAdmin && (
+            <button className="btn btn-primary" onClick={() => setIsTaskModalOpen(true)}>
+              <Plus size={18} /> New Task
+            </button>
+          )}
+          {canDeleteProject && (
             <>
-              <button className="btn btn-primary" onClick={() => setIsTaskModalOpen(true)}>
-                <Plus size={18} /> New Task
-              </button>
               {!showDeleteConfirm ? (
                 <button
                   id="delete-project-btn"
@@ -288,7 +333,7 @@ export default function ProjectBoard() {
                       className="column-task-list"
                     >
                       {columnTasks.map((task, index) => {
-                        const isDragDisabled = !isAdmin && !!task.assigneeId && task.assigneeId !== currentUser?.id;
+                        const isDragDisabled = !isProjectAdmin && !!task.assigneeId && task.assigneeId !== currentUser?.id;
                         return (
                           <Draggable 
                             key={task.id} 
@@ -307,7 +352,7 @@ export default function ProjectBoard() {
                                 <span className={`priority-indicator bg-${task.priority.toLowerCase()}`}>
                                   {task.priority}
                                 </span>
-                                {isAdmin && (
+                                {isProjectAdmin && (
                                   <div className="card-admin-actions">
                                     <button 
                                       className="btn-icon edit-task-btn"

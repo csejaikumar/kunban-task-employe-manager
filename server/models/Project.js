@@ -5,6 +5,7 @@ const projectSchema = new mongoose.Schema({
   description: { type: String },
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  subAdmins: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   shareToken: { type: String, unique: true, sparse: true }
 }, { timestamps: true });
 
