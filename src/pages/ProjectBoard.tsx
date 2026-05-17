@@ -75,11 +75,11 @@ export default function ProjectBoard() {
 
   const handleToggleSubAdmin = async (userId: string) => {
     if (!project || !id) return;
-    const currentSubAdmins = Array.isArray((project as any).subAdmins) ? (project as any).subAdmins : [];
-    const isAlreadySubAdmin = currentSubAdmins.some(m => String(m) === String(userId));
+    const currentSubAdmins = Array.isArray(project.subAdmins) ? project.subAdmins : [];
+    const isAlreadySubAdmin = currentSubAdmins.some((m: string) => String(m) === String(userId));
     
     const newSubAdmins = isAlreadySubAdmin
-      ? currentSubAdmins.filter(m => String(m) !== String(userId))
+      ? currentSubAdmins.filter((m: string) => String(m) !== String(userId))
       : [...currentSubAdmins, userId];
       
     try {

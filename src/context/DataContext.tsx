@@ -155,9 +155,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
         ? currentMembers.filter(m => String(m).trim() !== String(userId).trim())
         : [...currentMembers, userId];
 
-      const currentSubAdmins = Array.isArray((project as any).subAdmins) ? (project as any).subAdmins : [];
+      const currentSubAdmins = Array.isArray(project.subAdmins) ? project.subAdmins : [];
       const newSubAdmins = isAlreadyMember
-        ? currentSubAdmins.filter(m => String(m).trim() !== String(userId).trim())
+        ? currentSubAdmins.filter((m: string) => String(m).trim() !== String(userId).trim())
         : currentSubAdmins;
 
       action = isAlreadyMember ? 'removed' : 'added';
