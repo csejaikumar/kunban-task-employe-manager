@@ -201,6 +201,16 @@
   border-color: var(--primary);
 }
 
+.task-card.drag-disabled {
+  cursor: not-allowed;
+}
+
+.task-card.drag-disabled:hover {
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  border-color: rgba(0,0,0,0.05);
+}
+
 .task-card.dragging {
   box-shadow: var(--shadow-lg);
   transform: scale(1.05) rotate(2deg);

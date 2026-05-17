@@ -277,9 +277,7 @@ export default function MeetingRoom() {
 
       // Replace video tracks in all active peer connections or add them if not present
       Object.values(pcsRef.current).forEach(pc => {
-        const senders = pc.getSenders();
-        const sender = senders.find(s => s.track && s.track.kind === 'video') || 
-                       senders.find(s => s.track === null);
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
         if (sender) {
           sender.replaceTrack(screenTrack);
         } else {
@@ -340,9 +338,7 @@ export default function MeetingRoom() {
     if (localStreamRef.current) {
       const cameraTrack = localStreamRef.current.getVideoTracks()[0];
       Object.values(pcsRef.current).forEach(pc => {
-        const senders = pc.getSenders();
-        const sender = senders.find(s => s.track && s.track.kind === 'video') || 
-                       senders.find(s => s.track === null);
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
         if (sender) {
           sender.replaceTrack(cameraTrack);
         }
@@ -505,16 +501,6 @@ export default function MeetingRoom() {
       localStreamRef.current.getTracks().forEach(track => {
         pc.addTrack(track, localStreamRef.current!);
       });
-    }
-
-    // Pre-allocate transceivers to ensure continuous active channels for both audio and video
-    const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-    if (!videoSender) {
-      pc.addTransceiver('video', { direction: 'sendrecv' });
-    }
-    const audioSender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
-    if (!audioSender) {
-      pc.addTransceiver('audio', { direction: 'sendrecv' });
     }
 
     // Exchange connection candidates

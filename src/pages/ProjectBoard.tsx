@@ -98,8 +98,19 @@ export default function ProjectBoard() {
     const newStatus = destination.droppableId as TaskStatus;
     
     const task = tasks.find(t => t.id === draggableId);
-    if (task && task.status !== newStatus) {
-      moveTask(draggableId, newStatus);
+    if (task) {
+      // Permission check: regular employees can only move their own tasks or unassigned tasks
+      const isAssignedToOther = task.assigneeId && task.assigneeId !== currentUser?.id;
+      if (!isAdmin && isAssignedToOther) {
+        goeyToast.error("Permission Denied", {
+          description: "Only admins or the assigned employee can move this task."
+        });
+        return;
+      }
+
+      if (task.status !== newStatus) {
+        moveTask(draggableId, newStatus);
+      }
     }
   };
 
@@ -197,13 +208,14 @@ export default function ProjectBoard() {
             <span>{activeHuddleCode ? "Join Huddle" : "Start Huddle"}</span>
           </button>
 
+          <button className="btn btn-secondary" onClick={() => setIsShareModalOpen(true)}>
+            <Share2 size={18} /> Share
+          </button>
+
           {isAdmin && (
             <>
               <button className="btn btn-primary" onClick={() => setIsTaskModalOpen(true)}>
                 <Plus size={18} /> New Task
-              </button>
-              <button className="btn btn-secondary" onClick={() => setIsShareModalOpen(true)}>
-                <Share2 size={18} /> Share
               </button>
               {!showDeleteConfirm ? (
                 <button
@@ -275,15 +287,22 @@ export default function ProjectBoard() {
                       ref={provided.innerRef}
                       className="column-task-list"
                     >
-                      {columnTasks.map((task, index) => (
-                        <Draggable key={task.id} draggableId={task.id} index={index}>
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="task-card glass-panel"
-                            >
+                      {columnTasks.map((task, index) => {
+                        const isDragDisabled = !isAdmin && !!task.assigneeId && task.assigneeId !== currentUser?.id;
+                        return (
+                          <Draggable 
+                            key={task.id} 
+                            draggableId={task.id} 
+                            index={index}
+                            isDragDisabled={isDragDisabled}
+                          >
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className={`task-card glass-panel ${isDragDisabled ? 'drag-disabled' : ''}`}
+                              >
                               <div className="task-card-header">
                                 <span className={`priority-indicator bg-${task.priority.toLowerCase()}`}>
                                   {task.priority}
@@ -365,7 +384,8 @@ export default function ProjectBoard() {
                             </div>
                           )}
                         </Draggable>
-                      ))}
+                        );
+                      })}
                       {provided.placeholder}
                     </div>
                   )}
