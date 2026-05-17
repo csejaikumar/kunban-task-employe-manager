@@ -21,6 +21,7 @@ export default function PublicProjectBoard() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPriority, setFilterPriority] = useState<string>('All');
+  const [activeMeetingCode, setActiveMeetingCode] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPublicData = async () => {
@@ -31,6 +32,7 @@ export default function PublicProjectBoard() {
         const data = await res.json();
         setProject(data.project);
         setTasks(data.tasks);
+        setActiveMeetingCode(data.activeMeetingCode);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -38,6 +40,20 @@ export default function PublicProjectBoard() {
       }
     };
     fetchPublicData();
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/public/projects/${token}`);
+        if (res.ok) {
+          const data = await res.json();
+          setActiveMeetingCode(data.activeMeetingCode);
+        }
+      } catch (err) {
+        console.error('Error polling huddle status:', err);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [token]);
 
   if (isLoading) return <div className="loading-container">Loading shared project...</div>;
@@ -162,6 +178,19 @@ export default function PublicProjectBoard() {
           );
         })}
       </div>
+
+      {activeMeetingCode && (
+        <div className="client-call-alert glass-panel animate-fade-in">
+          <div className="alert-pulse-ring"></div>
+          <div className="alert-content">
+            <h4>Live Call in Progress</h4>
+            <p>The project team is currently in a live meeting. Click below to join the discussion.</p>
+            <Link to={`/meeting/${activeMeetingCode}`} className="btn btn-primary btn-sm btn-block animate-glow" style={{ marginTop: '0.75rem', display: 'block', textAlign: 'center' }}>
+              Join Project Huddle
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

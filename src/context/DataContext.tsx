@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { Project, Task, TaskStatus } from '../types';
+import type { Project, Task, TaskStatus, Meeting } from '../types';
 import { goeyToast } from 'goey-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -21,6 +21,9 @@ interface DataContextType {
   moveTask: (taskId: string, newStatus: TaskStatus) => void;
   toggleSubtask: (taskId: string, subtaskId: string) => void;
   unassignTasksForUser: (userId: string) => void;
+  checkActiveHuddle: (projectId: string) => Promise<Meeting | null>;
+  startHuddle: (projectId: string, hostId: string) => Promise<Meeting>;
+  endHuddle: (projectId: string) => Promise<void>;
 }
 
 
@@ -315,8 +318,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const checkActiveHuddle = async (projectId: string): Promise<Meeting | null> => {
+    try {
+      const res = await fetch(`${API_URL}/api/meetings/active/${projectId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error('Error checking active huddle:', err);
+      return null;
+    }
+  };
+
+  const startHuddle = async (projectId: string, hostId: string): Promise<Meeting> => {
+    try {
+      const res = await fetch(`${API_URL}/api/meetings/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, hostId }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error('Error starting huddle:', err);
+      throw err;
+    }
+  };
+
+  const endHuddle = async (projectId: string): Promise<void> => {
+    try {
+      await fetch(`${API_URL}/api/meetings/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      });
+    } catch (err) {
+      console.error('Error ending huddle:', err);
+    }
+  };
+
   return (
-    <DataContext.Provider value={{ projects, tasks, isLoading, addProject, updateProject, deleteProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser, toggleProjectMember, generateShareLink, revokeShareLink }}>
+    <DataContext.Provider value={{ projects, tasks, isLoading, addProject, updateProject, deleteProject, addTask, updateTask, deleteTask, moveTask, toggleSubtask, unassignTasksForUser, toggleProjectMember, generateShareLink, revokeShareLink, checkActiveHuddle, startHuddle, endHuddle }}>
       {children}
     </DataContext.Provider>
   );

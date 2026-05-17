@@ -29,3 +29,11 @@ export interface Task {
   dueDate: string | null;
   subtasks?: { id: string; title: string; isCompleted: boolean }[];
 }
+
+export interface Meeting {
+  id?: string;
+  projectId: string;
+  meetingCode: string;
+  hostId: string;
+  createdAt?: string;
+}

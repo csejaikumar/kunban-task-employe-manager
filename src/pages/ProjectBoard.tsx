@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import type { TaskStatus } from '../types';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import type { DropResult } from '@hello-pangea/dnd';
-import { Plus, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus, Share2, Link as LinkIcon, Copy, X, Eye, Check, Edit2 } from 'lucide-react';
+import { Plus, Calendar, Search, Filter, CheckSquare, Trash2, UserPlus, Share2, Link as LinkIcon, Copy, X, Eye, Check, Edit2, Video } from 'lucide-react';
 import TaskModal from '../components/modals/TaskModal';
 import { goeyToast } from 'goey-toast';
 import './ProjectBoard.css';
@@ -15,7 +15,7 @@ const COLUMNS: TaskStatus[] = ['Todo', 'In Progress', 'Review', 'Done'];
 export default function ProjectBoard() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { projects, tasks, moveTask, toggleSubtask, deleteTask, deleteProject, isLoading, toggleProjectMember, generateShareLink, revokeShareLink } = useData();
+  const { projects, tasks, moveTask, toggleSubtask, deleteTask, deleteProject, isLoading, toggleProjectMember, generateShareLink, revokeShareLink, checkActiveHuddle, startHuddle } = useData();
   const { currentUser, users } = useAuth();
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -26,6 +26,19 @@ export default function ProjectBoard() {
   const [isManageMembersOpen, setIsManageMembersOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
+  const [activeHuddleCode, setActiveHuddleCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchHuddleStatus = async () => {
+      if (!id) return;
+      const meeting = await checkActiveHuddle(id);
+      setActiveHuddleCode(meeting ? meeting.meetingCode : null);
+    };
+
+    fetchHuddleStatus();
+    const interval = setInterval(fetchHuddleStatus, 10000);
+    return () => clearInterval(interval);
+  }, [id]);
 
   const project = projects.find(p => String(p.id) === String(id) || String((p as any)._id) === String(id));
 
@@ -96,6 +109,21 @@ export default function ProjectBoard() {
     navigate('/');
   };
 
+  const handleHuddleClick = async () => {
+    if (!id || !currentUser) return;
+    try {
+      if (activeHuddleCode) {
+        navigate(`/meeting/${activeHuddleCode}`);
+      } else {
+        const meeting = await startHuddle(id, currentUser.id);
+        setActiveHuddleCode(meeting.meetingCode);
+        navigate(`/meeting/${meeting.meetingCode}`);
+      }
+    } catch (err) {
+      goeyToast.error("Failed to connect to huddle room");
+    }
+  };
+
   return (
     <div className="project-board animate-fade-in">
       <header className="board-header">
@@ -159,6 +187,16 @@ export default function ProjectBoard() {
               </div>
             )}
           </div>
+          
+          <button 
+            className={`btn ${activeHuddleCode ? 'btn-huddle-pulse animate-glow' : 'btn-secondary'}`}
+            onClick={handleHuddleClick}
+            title={activeHuddleCode ? "Call in Progress - Click to Join!" : "Start Team Call"}
+          >
+            <Video size={18} />
+            <span>{activeHuddleCode ? "Join Huddle" : "Start Huddle"}</span>
+          </button>
+
           {isAdmin && (
             <>
               <button className="btn btn-primary" onClick={() => setIsTaskModalOpen(true)}>

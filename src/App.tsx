@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import ProjectBoard from './pages/ProjectBoard';
 import PublicProjectBoard from './pages/PublicProjectBoard';
 import Team from './pages/Team';
+import MeetingRoom from './pages/MeetingRoom';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
               <Route path="/login" element={<Login />} />
 
               <Route path="/shared/:token" element={<PublicProjectBoard />} />
+              <Route path="/meeting/:meetingCode" element={<MeetingRoom />} />
 
               <Route path="/" element={<Layout />}>
                 <Route index element={<Dashboard />} />
