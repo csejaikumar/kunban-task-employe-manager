@@ -202,9 +202,8 @@ export default function ProjectBoard() {
                           <div 
                             key={user.id} 
                             className={`manage-member-item ${isMember ? 'active' : ''}`}
-                            onClick={() => handleToggleMember(user.id)}
                           >
-                            <div className="member-item-main">
+                            <div className="member-item-main" onClick={() => handleToggleMember(user.id)} style={{ cursor: 'pointer' }}>
                               <img src={user.avatar} alt={user.name} className="mini-avatar" />
                               <div className="member-item-info">
                                 <span className="member-name">{user.name}</span>
@@ -232,9 +231,29 @@ export default function ProjectBoard() {
                                 </button>
                               )}
                               {isMember ? (
-                                !isOwner && <span className="remove-text">Remove</span>
+                                !isOwner && (
+                                  <span 
+                                    className="remove-text" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleMember(user.id);
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                  >
+                                    Remove
+                                  </span>
+                                )
                               ) : (
-                                <span className="add-text">Add</span>
+                                <span 
+                                  className="add-text"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleMember(user.id);
+                                  }}
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  Add
+                                </span>
                               )}
                               <div className={`status-indicator ${isMember ? 'active' : ''}`}></div>
                             </div>
