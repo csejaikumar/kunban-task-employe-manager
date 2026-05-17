@@ -220,11 +220,15 @@ export default function ProjectBoard() {
                                     e.stopPropagation();
                                     handleToggleSubAdmin(user.id);
                                   }}
-                                  title={isUserSubAdmin ? "Demote from Sub Admin" : "Promote to Sub Admin"}
-                                  disabled={!canManageSubAdmins}
+                                  title={
+                                    user.role === 'Sub Admin'
+                                      ? "Global Sub-Admins cannot be demoted on a project level"
+                                      : isUserSubAdmin ? "Demote from Sub Admin" : "Promote to Sub Admin"
+                                  }
+                                  disabled={!canManageSubAdmins || user.role === 'Sub Admin'}
                                   type="button"
                                 >
-                                  <Shield size={14} />
+                                  <Shield size={14} fill={isUserSubAdmin ? "currentColor" : "none"} />
                                 </button>
                               )}
                               {isMember ? (
