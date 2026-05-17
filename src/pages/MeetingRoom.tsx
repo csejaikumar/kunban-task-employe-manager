@@ -448,6 +448,14 @@ export default function MeetingRoom() {
 
     socket.on('peer-screen-share', ({ senderSocketId, isSharing }: { senderSocketId: string, isSharing: boolean }) => {
       setScreenSharerSocketId(isSharing ? senderSocketId : null);
+      if (isSharing) {
+        setRemotePeers(prev => prev.map(peer => {
+          if (peer.socketId === senderSocketId) {
+            return { ...peer, isCamOn: true };
+          }
+          return peer;
+        }));
+      }
     });
   };
 
@@ -482,10 +490,14 @@ export default function MeetingRoom() {
 
     // Capture incoming remote camera track
     pc.ontrack = (event) => {
-      const remoteStream = event.streams[0];
       setRemotePeers(prev => prev.map(peer => {
         if (peer.socketId === peerSocketId) {
-          return { ...peer, stream: remoteStream };
+          const existingStream = peer.stream || new MediaStream();
+          if (!existingStream.getTracks().some(t => t.id === event.track.id)) {
+            existingStream.addTrack(event.track);
+          }
+          // Clone the stream to force React state dependency triggers
+          return { ...peer, stream: new MediaStream(existingStream.getTracks()) };
         }
         return peer;
       }));
@@ -592,10 +604,34 @@ export default function MeetingRoom() {
       }
     }, [stream]);
 
+    // Keep dynamic track additions bound
+    useEffect(() => {
+      if (!stream) return;
+      const handleTrackAdded = () => {
+        if (videoRef.current && videoRef.current.srcObject !== stream) {
+          videoRef.current.srcObject = stream;
+        }
+        if (audioRef.current && audioRef.current.srcObject !== stream) {
+          audioRef.current.srcObject = stream;
+        }
+      };
+      stream.addEventListener('addtrack', handleTrackAdded);
+      stream.addEventListener('removetrack', handleTrackAdded);
+      return () => {
+        stream.removeEventListener('addtrack', handleTrackAdded);
+        stream.removeEventListener('removetrack', handleTrackAdded);
+      };
+    }, [stream]);
+
     return (
       <div className={`video-card glass-panel animate-fade-in ${isSpeaking ? 'speaking-glow' : ''}`}>
-        {/* Dedicated unmuted hidden audio element for absolute audio delivery */}
-        <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
+        {/* Dedicated unmuted hidden audio element for absolute audio delivery - absolute layout prevents browser throttling */}
+        <audio 
+          ref={audioRef} 
+          autoPlay 
+          playsInline 
+          style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', zIndex: -1 }} 
+        />
 
         {/* Muted video element so browser autoplay security policies do not block it, completely independent of layout display mode */}
         <video 
@@ -745,8 +781,11 @@ export default function MeetingRoom() {
             {screenSharerSocketId === 'local' ? (
               <video 
                 ref={el => { 
-                  if (el && screenStreamRef.current && el.srcObject !== screenStreamRef.current) {
-                    el.srcObject = screenStreamRef.current;
+                  if (el && screenStreamRef.current) {
+                    if (el.srcObject !== screenStreamRef.current) {
+                      el.srcObject = screenStreamRef.current;
+                    }
+                    el.play().catch(err => console.warn('Spotlight play deferred:', err));
                   } 
                 }}
                 autoPlay 
@@ -758,8 +797,11 @@ export default function MeetingRoom() {
               <video 
                 ref={el => { 
                   const sharer = remotePeers.find(p => p.socketId === screenSharerSocketId);
-                  if (el && sharer && sharer.stream && el.srcObject !== sharer.stream) {
-                    el.srcObject = sharer.stream;
+                  if (el && sharer && sharer.stream) {
+                    if (el.srcObject !== sharer.stream) {
+                      el.srcObject = sharer.stream;
+                    }
+                    el.play().catch(err => console.warn('Remote spotlight play deferred:', err));
                   } 
                 }}
                 autoPlay 
