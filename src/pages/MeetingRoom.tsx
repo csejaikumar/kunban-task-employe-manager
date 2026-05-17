@@ -9,7 +9,7 @@ import './MeetingRoom.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-function useSpeakingDetection(stream: MediaStream | null | undefined, isMicOn: boolean) {
+function useSpeakingDetection(stream: MediaStream | null | undefined, isMicOn: boolean, mutePlayback = true) {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
@@ -26,12 +26,28 @@ function useSpeakingDetection(stream: MediaStream | null | undefined, isMicOn: b
     let analyser: AnalyserNode | null = null;
     let animationFrameId: number | null = null;
 
+    const resumeAudio = () => {
+      if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().catch(err => console.warn('Failed to resume AudioContext:', err));
+      }
+    };
+
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       source = audioContext.createMediaStreamSource(stream);
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
+
+      // Bypass dynamic DOM autoplay blocks by routing audio output directly via Web Audio API for remote streams
+      if (!mutePlayback) {
+        analyser.connect(audioContext.destination);
+      }
+
+      // Add user gesture event listeners to instantly unlock playback on first interaction
+      window.addEventListener('click', resumeAudio);
+      window.addEventListener('touchstart', resumeAudio);
+      resumeAudio(); // Attempt immediate play
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       
@@ -56,12 +72,14 @@ function useSpeakingDetection(stream: MediaStream | null | undefined, isMicOn: b
 
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('click', resumeAudio);
+      window.removeEventListener('touchstart', resumeAudio);
       if (source) source.disconnect();
       if (audioContext && audioContext.state !== 'closed') {
         audioContext.close();
       }
     };
-  }, [stream, isMicOn]);
+  }, [stream, isMicOn, mutePlayback]);
 
   return isSpeaking;
 }
@@ -259,7 +277,9 @@ export default function MeetingRoom() {
 
       // Replace video tracks in all active peer connections or add them if not present
       Object.values(pcsRef.current).forEach(pc => {
-        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        const senders = pc.getSenders();
+        const sender = senders.find(s => s.track && s.track.kind === 'video') || 
+                       senders.find(s => s.track === null);
         if (sender) {
           sender.replaceTrack(screenTrack);
         } else {
@@ -320,7 +340,9 @@ export default function MeetingRoom() {
     if (localStreamRef.current) {
       const cameraTrack = localStreamRef.current.getVideoTracks()[0];
       Object.values(pcsRef.current).forEach(pc => {
-        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        const senders = pc.getSenders();
+        const sender = senders.find(s => s.track && s.track.kind === 'video') || 
+                       senders.find(s => s.track === null);
         if (sender) {
           sender.replaceTrack(cameraTrack);
         }
@@ -457,6 +479,13 @@ export default function MeetingRoom() {
         }));
       }
     });
+
+    socket.on('huddle-terminated', () => {
+      goeyToast.warning('Call Ended by Host', {
+        description: 'The host has ended this meeting for all participants.'
+      });
+      leaveHuddle();
+    });
   };
 
   // Helper: Create custom WebRTC connection
@@ -476,6 +505,16 @@ export default function MeetingRoom() {
       localStreamRef.current.getTracks().forEach(track => {
         pc.addTrack(track, localStreamRef.current!);
       });
+    }
+
+    // Pre-allocate transceivers to ensure continuous active channels for both audio and video
+    const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+    if (!videoSender) {
+      pc.addTransceiver('video', { direction: 'sendrecv' });
+    }
+    const audioSender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+    if (!audioSender) {
+      pc.addTransceiver('audio', { direction: 'sendrecv' });
     }
 
     // Exchange connection candidates
@@ -565,6 +604,9 @@ export default function MeetingRoom() {
     if (window.confirm('Are you sure you want to end this call for everyone?')) {
       if (linkedProjectId) {
         try {
+          if (socketRef.current) {
+            socketRef.current.emit('end-meeting', { roomCode: meetingCode });
+          }
           await endHuddle(linkedProjectId);
         } catch (err) {
           console.error(err);
@@ -588,7 +630,7 @@ export default function MeetingRoom() {
   const RemoteVideo = ({ stream, isMicOn, isCamOn, name, isScreenSharing }: { stream?: MediaStream, isMicOn: boolean, isCamOn: boolean, name: string, isScreenSharing?: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
-    const isSpeaking = useSpeakingDetection(stream, isMicOn);
+    const isSpeaking = useSpeakingDetection(stream, isMicOn, false);
 
     useEffect(() => {
       if (videoRef.current && stream && videoRef.current.srcObject !== stream) {

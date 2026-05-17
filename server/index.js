@@ -359,6 +359,10 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('end-meeting', ({ roomCode }) => {
+    socket.to(roomCode).emit('huddle-terminated');
+  });
+
   socket.on('disconnecting', () => {
     socket.rooms.forEach(roomCode => {
       socket.to(roomCode).emit('peer-left', { socketId: socket.id });
