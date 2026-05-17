@@ -6,6 +6,12 @@ import UserModal from '../components/modals/UserModal';
 import './Dashboard.css'; 
 import './Team.css';
 
+const getNextRole = (currentRole: 'Admin' | 'Employee' | 'Sub Admin'): 'Admin' | 'Employee' | 'Sub Admin' => {
+  if (currentRole === 'Admin') return 'Sub Admin';
+  if (currentRole === 'Sub Admin') return 'Employee';
+  return 'Admin';
+};
+
 export default function Team() {
   const { users, currentUser, removeUser, changeUserRole } = useAuth();
   const { tasks, unassignTasksForUser } = useData();
@@ -135,8 +141,8 @@ export default function Team() {
                     </div>
                   </div>
                   <div className="col-role">
-                    <span className={`role-badge ${user.role.toLowerCase()}`}>
-                      {user.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
+                    <span className={`role-badge ${user.role.toLowerCase().replace(' ', '-')}`}>
+                      {user.role === 'Admin' || user.role === 'Sub Admin' ? <Shield size={12} /> : <User size={12} />}
                       {user.role}
                     </span>
                   </div>
@@ -154,11 +160,11 @@ export default function Team() {
                       <div className="row-actions-group">
                         <button
                           className="btn-role-toggle"
-                          onClick={() => changeUserRole(user.id, user.role === 'Admin' ? 'Employee' : 'Admin')}
-                          title={user.role === 'Admin' ? 'Demote to Employee' : 'Promote to Admin'}
+                          onClick={() => changeUserRole(user.id, getNextRole(user.role as any))}
+                          title={user.role === 'Admin' ? 'Change to Sub Admin' : user.role === 'Sub Admin' ? 'Change to Employee' : 'Change to Admin'}
                         >
                           <RefreshCw size={12} />
-                          {user.role === 'Admin' ? 'Make Employee' : 'Make Admin'}
+                          {user.role === 'Admin' ? 'Make Sub Admin' : user.role === 'Sub Admin' ? 'Make Employee' : 'Make Admin'}
                         </button>
                         <button 
                           className="btn-icon btn-sm text-danger"
@@ -194,8 +200,8 @@ export default function Team() {
                   
                   <div className="team-info-main">
                     <h3 className="team-name">{user.name}</h3>
-                    <div className={`team-role ${user.role === 'Admin' ? 'admin' : 'employee'}`}>
-                      {user.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
+                    <div className={`team-role ${user.role.toLowerCase().replace(' ', '-')}`}>
+                      {user.role === 'Admin' || user.role === 'Sub Admin' ? <Shield size={12} /> : <User size={12} />}
                       <span>{user.role}</span>
                     </div>
                   </div>
@@ -216,10 +222,10 @@ export default function Team() {
                   <div className="team-card-actions">
                     <button
                       className="btn-role-toggle"
-                      onClick={() => changeUserRole(user.id, user.role === 'Admin' ? 'Employee' : 'Admin')}
+                      onClick={() => changeUserRole(user.id, getNextRole(user.role as any))}
                     >
                       <RefreshCw size={13} />
-                      {user.role === 'Admin' ? 'Make Employee' : 'Make Admin'}
+                      {user.role === 'Admin' ? 'Make Sub Admin' : user.role === 'Sub Admin' ? 'Make Employee' : 'Make Admin'}
                     </button>
                     <button 
                       className="btn-text text-danger" 

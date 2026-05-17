@@ -47,9 +47,10 @@ export default function ProjectBoard() {
 
   const isGlobalAdmin = currentUser?.role === 'Admin';
   const isProjectOwner = project && String(currentUser?.id) === String(project.ownerId);
-  const isSubAdmin = project && Array.isArray((project as any).subAdmins) && 
-                     (project as any).subAdmins.some((subId: any) => String(subId) === String(currentUser?.id));
-  const isProjectAdmin = isGlobalAdmin || isProjectOwner || isSubAdmin;
+  const isSubAdmin = project && Array.isArray(project.subAdmins) && 
+                     project.subAdmins.some((subId: string) => String(subId) === String(currentUser?.id));
+  const isSubAdminRole = currentUser?.role === 'Sub Admin';
+  const isProjectAdmin = isGlobalAdmin || isProjectOwner || isSubAdmin || isSubAdminRole;
   const canManageSubAdmins = isGlobalAdmin || isProjectOwner;
   const canDeleteProject = isGlobalAdmin || isProjectOwner;
 
@@ -193,8 +194,9 @@ export default function ProjectBoard() {
                       {users.map(user => {
                         const isMember = projectMembers.some(m => String(m) === String(user.id));
                         const isOwner = project && String(user.id) === String(project.ownerId);
-                        const isUserSubAdmin = project && Array.isArray((project as any).subAdmins) && 
-                                               (project as any).subAdmins.some((subId: any) => String(subId) === String(user.id));
+                        const isUserSubAdmin = (project && Array.isArray(project.subAdmins) && 
+                                               project.subAdmins.some((subId: string) => String(subId) === String(user.id))) ||
+                                               user.role === 'Sub Admin';
                         
                         return (
                           <div 

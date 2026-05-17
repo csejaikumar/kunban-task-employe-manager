@@ -10,10 +10,10 @@ interface AuthContextType {
   login: (user: User) => void;
   logout: () => void;
   users: User[];
-  addUser: (name: string, role: 'Admin' | 'Employee', password?: string) => void;
+  addUser: (name: string, role: 'Admin' | 'Employee' | 'Sub Admin', password?: string) => void;
   removeUser: (id: string) => void;
   updatePassword: (userId: string, newPassword: string) => Promise<boolean>;
-  changeUserRole: (userId: string, newRole: 'Admin' | 'Employee') => Promise<unknown>;
+  changeUserRole: (userId: string, newRole: 'Admin' | 'Employee' | 'Sub Admin') => Promise<unknown>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addUser = async (name: string, role: 'Admin' | 'Employee', password?: string) => {
+  const addUser = async (name: string, role: 'Admin' | 'Employee' | 'Sub Admin', password?: string) => {
     const newUser = {
       name,
       role,
@@ -138,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const changeUserRole = async (userId: string, newRole: 'Admin' | 'Employee') => {
+  const changeUserRole = async (userId: string, newRole: 'Admin' | 'Employee' | 'Sub Admin') => {
     const user = users.find(u => u.id === userId);
     if (!user) return;
     const promise = fetch(`${API_URL}/api/users/${userId}`, {

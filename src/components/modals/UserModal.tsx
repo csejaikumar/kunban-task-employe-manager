@@ -7,7 +7,7 @@ export default function UserModal({ onClose }: { onClose: () => void }) {
   const { addUser } = useAuth();
   
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'Admin' | 'Employee'>('Employee');
+  const [role, setRole] = useState<'Admin' | 'Employee' | 'Sub Admin'>('Employee');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -45,9 +45,10 @@ export default function UserModal({ onClose }: { onClose: () => void }) {
             <select 
               id="userRole"
               value={role}
-              onChange={(e) => setRole(e.target.value as 'Admin' | 'Employee')}
+              onChange={(e) => setRole(e.target.value as 'Admin' | 'Employee' | 'Sub Admin')}
             >
               <option value="Employee">Employee (Standard Access)</option>
+              <option value="Sub Admin">Sub Admin (Project-Scoped Access)</option>
               <option value="Admin">Admin (Full Access)</option>
             </select>
           </div>

@@ -184,6 +184,7 @@
 }
 
 .role-badge.admin { background: #e0e7ff; color: #4338ca; }
+.role-badge.sub-admin { background: #ffedd5; color: #c2410c; }
 .role-badge.employee { background: #f3f4f6; color: #374151; }
 
 .email-text {
@@ -287,6 +288,7 @@
 }
 
 .team-role.admin { background: #e0e7ff; color: #4338ca; }
+.team-role.sub-admin { background: #ffedd5; color: #c2410c; }
 .team-role.employee { background: #f3f4f6; color: #374151; }
 
 .team-card-details {
